@@ -2,7 +2,7 @@
 日志管理器模块
 
 @author: MingTechPro
-@version: 1.0.0
+@version: 1.1.0
 @date: 2025-08-15
 @description: 该模块提供了统一的日志管理功能，采用单例模式确保日志配置的一致性。
              支持控制台和文件双重输出，自动日志轮转，彩色输出等功能。
@@ -14,6 +14,7 @@
 - 时间戳命名
 - 彩色日志输出
 - 不同级别的日志控制
+- 智能日志清理
 
 设计模式:
 - 单例模式: 确保全局唯一的日志管理器
@@ -32,8 +33,9 @@ import logging
 import logging.handlers
 import os
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
+import glob
 
 
 class LogManager:
@@ -44,7 +46,7 @@ class LogManager:
     支持控制台和文件双重输出，自动日志轮转等特性。
     
     @author: MingTechPro
-    @version: 1.0.0
+    @version: 1.1.0
     @date: 2025-08-15
     
     主要特性:
@@ -53,6 +55,7 @@ class LogManager:
     - 自动日志文件轮转
     - 时间戳文件命名
     - 灵活的配置选项
+    - 智能日志清理
     
     @example
         # 获取日志管理器实例
@@ -70,6 +73,7 @@ class LogManager:
     
     _instance = None    # 单例实例
     _logger = None      # 日志器实例
+    _initialized = False  # 初始化标志
     
     def __new__(cls):
         """
@@ -89,8 +93,9 @@ class LogManager:
         
         如果日志器未初始化，则进行初始化设置。
         """
-        if self._logger is None:
+        if not self._initialized:
             self._setup_logger()
+            self._initialized = True
     
     def _setup_logger(self, config: Optional[Dict[str, Any]] = None) -> None:
         """
@@ -109,6 +114,10 @@ class LogManager:
             }
             self._setup_logger(config)
         """
+        # 如果日志器已经存在且没有新的配置，则跳过初始化
+        if self._logger is not None and config is None:
+            return
+            
         # 默认配置
         default_config = {
             "level": "INFO",                    # 全局日志级别
@@ -118,7 +127,9 @@ class LogManager:
             "max_file_size": "10MB",            # 最大文件大小
             "backup_count": 5,                  # 备份文件数量
             "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",  # 日志格式
-            "date_format": "%Y-%m-%d %H:%M:%S"  # 日期格式
+            "date_format": "%Y-%m-%d %H:%M:%S",  # 日期格式
+            "cleanup_old_logs": True,           # 是否清理旧日志
+            "log_retention_days": 7             # 日志保留天数
         }
         
         # 合并用户配置
@@ -172,9 +183,33 @@ class LogManager:
         file_handler.setFormatter(formatter)
         self._logger.addHandler(file_handler)
         
-        # 记录初始化信息
-        self._logger.info("日志系统初始化完成")
-        self._logger.info(f"日志文件路径: {log_file_path}")
+        # 记录初始化信息（只在首次初始化时输出）
+        if not hasattr(self, '_setup_completed'):
+            self._logger.info("日志系统初始化完成")
+            self._logger.info(f"日志文件路径: {log_file_path}")
+            self._setup_completed = True
+            
+            # 清理旧日志文件
+            if default_config.get("cleanup_old_logs", True):
+                self._cleanup_old_logs(log_dir, default_config.get("log_retention_days", 7))
+    
+    def _update_logger_config(self, config: Dict[str, Any]) -> None:
+        """
+        更新日志器配置（不输出初始化信息）
+        
+        @param {Dict[str, Any]} config - 日志配置字典
+        @returns {None}
+        """
+        # 更新日志级别
+        if "level" in config:
+            self._logger.setLevel(getattr(logging, config["level"].upper()))
+        
+        # 更新控制台处理器级别
+        if "console_level" in config:
+            for handler in self._logger.handlers:
+                if isinstance(handler, logging.StreamHandler) and not isinstance(handler, logging.FileHandler):
+                    handler.setLevel(getattr(logging, config["console_level"].upper()))
+                    break
     
     @classmethod
     def get_logger(cls) -> logging.Logger:
@@ -194,7 +229,20 @@ class LogManager:
             logger.info("这是一条信息日志")
         """
         if cls._instance is None:
+            # 如果实例不存在，使用默认配置创建
             cls._instance = cls()
+            # 使用默认配置初始化
+            default_config = {
+                "level": "INFO",
+                "console_level": "INFO",
+                "file_level": "DEBUG",
+                "log_file": "logs/spider.log",
+                "max_file_size": "10MB",
+                "backup_count": 5,
+                "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+                "date_format": "%Y-%m-%d %H:%M:%S"
+            }
+            cls._instance._setup_logger(default_config)
         return cls._instance._logger
     
     @classmethod
@@ -218,7 +266,11 @@ class LogManager:
         """
         if cls._instance is None:
             cls._instance = cls()
-        cls._instance._setup_logger(config)
+            # 只在首次创建实例时输出初始化信息
+            cls._instance._setup_logger(config)
+        else:
+            # 如果实例已存在，只更新配置，不输出初始化信息
+            cls._instance._update_logger_config(config)
     
     @classmethod
     def set_level(cls, level: str) -> None:
@@ -293,6 +345,44 @@ class LogManager:
                     
         except Exception as e:
             cls.get_logger().error(f"清理旧日志文件失败: {e}")
+
+    def _cleanup_old_logs(self, log_dir: Path, retention_days: int) -> None:
+        """
+        清理旧日志文件
+        
+        @param {Path} log_dir - 日志目录
+        @param {int} retention_days - 保留天数
+        @returns {None}
+        """
+        try:
+            if not log_dir.exists():
+                return
+            
+            cutoff_time = datetime.now() - timedelta(days=retention_days)
+            deleted_count = 0
+            
+            # 查找所有日志文件
+            log_pattern = log_dir / "spider_*.log"
+            for log_file in glob.glob(str(log_pattern)):
+                log_path = Path(log_file)
+                if log_path.exists():
+                    # 检查文件修改时间
+                    file_mtime = datetime.fromtimestamp(log_path.stat().st_mtime)
+                    if file_mtime < cutoff_time:
+                        try:
+                            log_path.unlink()
+                            deleted_count += 1
+                        except Exception as e:
+                            # 记录删除失败，但不影响程序运行
+                            if self._logger:
+                                self._logger.warning(f"删除旧日志文件失败: {log_file}, 错误: {e}")
+            
+            if deleted_count > 0 and self._logger:
+                self._logger.info(f"已清理 {deleted_count} 个旧日志文件 (保留 {retention_days} 天)")
+                
+        except Exception as e:
+            if self._logger:
+                self._logger.error(f"清理旧日志文件时出错: {e}")
 
 
 # 便捷函数

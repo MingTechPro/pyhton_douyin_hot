@@ -203,7 +203,9 @@ def setup_environment(config_manager: ConfigManager, args: argparse.Namespace) -
         "max_file_size": config.log_max_file_size,
         "backup_count": config.log_backup_count,
         "format": config.log_format,
-        "date_format": config.log_date_format
+        "date_format": config.log_date_format,
+        "cleanup_old_logs": getattr(config, 'cleanup_old_logs', True),
+        "log_retention_days": getattr(config, 'log_retention_days', 7)
     }
     
     # 初始化日志系统
@@ -331,8 +333,7 @@ def main():
             return
         
         # 开始执行爬虫
-        logger.info("=== 抖音热榜爬虫开始执行 (优化版本) ===")
-        logger.info(f"配置信息 - 最大项目数: {config.max_items}, 请求间隔: {config.request_interval}秒")
+        logger.info(f"🚀 开始爬取抖音热榜 (获取{config.max_items}条)")
         
         # 创建性能监控器
         perf_monitor = PerformanceMonitor()
@@ -341,7 +342,9 @@ def main():
         # 创建缓存管理器
         cache_manager = CacheManager(
             max_size=100,
-            ttl=config.cache_duration
+            ttl=config.cache_duration,
+            enable_persistence=True,
+            cache_dir="cache"
         )
         
         # 创建速率限制器
@@ -358,6 +361,9 @@ def main():
             rate_limiter=rate_limiter
         )
         
+        # 将性能监控器传递给爬虫
+        spider.perf_monitor = perf_monitor
+        
         # 执行爬取操作
         result = spider.crawl()
         
@@ -365,37 +371,40 @@ def main():
         perf_monitor.end()
         
         # 输出性能统计信息
+        stats = perf_monitor.get_stats()
+        
+        # 检查是否使用了缓存
+        used_cache = stats['request_count'] == 0 and result.success
+        
         if args.performance:
             # 详细性能统计
-            stats = perf_monitor.get_stats()
-            logger.info("=== 详细性能统计 ===")
-            logger.info(f"总执行时间: {stats['total_time']}秒")
-            logger.info(f"请求总数: {stats['request_count']}")
-            logger.info(f"成功请求: {stats['success_count']}")
-            logger.info(f"失败请求: {stats['error_count']}")
-            logger.info(f"成功率: {stats['success_rate']}%")
-            logger.info(f"平均请求时间: {stats['avg_request_time']}秒")
-            logger.info(f"每秒请求数: {stats['requests_per_second']}")
-            logger.info(f"内存使用: {stats['memory_usage']}MB")
-            logger.info(f"CPU使用: {stats['cpu_usage']}%")
-            logger.info(f"最大内存: {stats['max_memory']}MB")
-            logger.info(f"最大CPU: {stats['max_cpu']}%")
-            logger.info(f"最快请求: {stats['min_request_time']}秒")
-            logger.info(f"最慢请求: {stats['max_request_time']}秒")
+            logger.info("📊 详细性能统计")
+            logger.info(f"⏱️  总时间: {stats['total_time']:.1f}秒")
+            if used_cache:
+                logger.info("💾 使用缓存数据 (无网络请求)")
+                logger.info(f"📈 缓存命中: 100.0% | ⚡ 响应时间: {stats['total_time']:.2f}秒")
+            else:
+                logger.info(f"📡 请求: {stats['request_count']}次 (成功{stats['success_count']}次, 失败{stats['error_count']}次)")
+                logger.info(f"📈 成功率: {stats['success_rate']:.1f}% | ⚡ 平均请求: {stats['avg_request_time']:.2f}秒")
+                logger.info(f"🚀 请求频率: {stats['requests_per_second']:.2f}次/秒")
+                logger.info(f"⚡ 请求详情: 最快{stats['min_request_time']:.2f}秒, 最慢{stats['max_request_time']:.2f}秒")
+            logger.info(f"💾 内存: {stats['memory_usage']:.1f}MB (峰值{stats['max_memory']:.1f}MB)")
+            logger.info(f"🖥️  CPU: {stats['cpu_usage']:.1f}% (峰值{stats['max_cpu']:.1f}%)")
         else:
             # 简要性能统计
-            stats = perf_monitor.get_stats()
-            logger.info("=== 性能统计 ===")
-            logger.info(f"总执行时间: {stats['total_time']}秒")
-            logger.info(f"成功率: {stats['success_rate']}%")
-            logger.info(f"平均请求时间: {stats['avg_request_time']}秒")
+            if used_cache:
+                logger.info(f"📊 性能: {stats['total_time']:.1f}秒 | 💾 缓存命中 | 100.0%成功率")
+            else:
+                logger.info(f"📊 性能: {stats['total_time']:.1f}秒 | {stats['request_count']}次请求 | {stats['success_rate']:.1f}%成功率")
         
         # 输出爬取结果
         if result.success:
-            logger.info(f"=== 爬取成功：处理 {result.items_processed} 条，成功 {result.items_success} 条 ===")
+            items_failed = result.items_processed - result.items_success
+            success_rate = result.items_success / result.items_processed * 100 if result.items_processed > 0 else 0
+            logger.info(f"📋 结果: 处理{result.items_processed}条, 成功{result.items_success}条, 失败{items_failed}条 | {success_rate:.1f}%成功率")
             output_result(result, args, config)
         else:
-            logger.error(f"爬取失败: {result.error_message}")
+            logger.error(f"❌ 爬取失败: {result.error_message}")
             
     except KeyboardInterrupt:
         # 处理用户中断

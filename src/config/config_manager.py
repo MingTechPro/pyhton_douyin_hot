@@ -128,6 +128,7 @@ class AppConfig:
     rate_limit_period: int = 60                    # 速率限制时间窗口(秒)
     enable_retry_backoff: bool = True              # 是否启用重试退避
     max_concurrent_workers: int = 3                # 最大并发工作线程数
+    debug: bool = False                            # 是否启用调试模式
     
     def validate(self) -> None:
         """
@@ -332,6 +333,7 @@ class ConfigManager:
                 rate_limit_period=self._env_config.get('RATE_LIMIT_PERIOD', 60),
                 enable_retry_backoff=self._env_config.get('ENABLE_RETRY_BACKOFF', True),
                 max_concurrent_workers=self._env_config.get('MAX_CONCURRENT_WORKERS', 3),
+                debug=self._env_config.get('DEBUG', False),
             )
             
             # 验证配置有效性
@@ -358,7 +360,7 @@ class ConfigManager:
             REQUEST_INTERVAL = 3
             ENABLE_PROXY = True
         """
-        env_config_file = self.config_dir / "env_config.py"
+        env_config_file = self.config_dir / "environment.py"
         
         if env_config_file.exists():
             try:
@@ -375,9 +377,15 @@ class ConfigManager:
                             self._env_config[attr_name] = attr_value
                             
             except Exception as e:
-                print(f"警告：环境配置加载失败，使用默认配置: {e}")
+                # 使用日志记录而不是print输出
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"环境配置加载失败，使用默认配置: {e}")
         else:
-            print("警告：未找到env_config.py文件，请复制并配置该文件")
+            # 使用日志记录而不是print输出
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.debug("未找到environment.py文件，使用默认配置")
     
     def reload_config(self) -> AppConfig:
         """

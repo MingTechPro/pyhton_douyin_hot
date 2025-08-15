@@ -7,20 +7,16 @@
 
 一个功能强大、高性能的抖音热点数据爬虫项目，采用模块化架构设计，支持多种数据格式输出、智能缓存机制、性能监控等特性。
 
+[📚 开发文档](./DEVELOPMENT.md) &nbsp;&nbsp;&nbsp;&nbsp; [❓ 常见问题](#-常见问题) &nbsp;&nbsp;&nbsp;&nbsp; [📝 更新日志](#-更新日志)
+
 ## 📋 目录
 
-- [功能特性](#-功能特性)
-- [项目结构](#-项目结构)
-- [快速开始](#-快速开始)
-- [安装指南](#-安装指南)
-- [使用说明](#-使用说明)
-- [配置说明](#-配置说明)
-- [API文档](#-api文档)
-- [开发指南](#-开发指南)
-- [常见问题](#-常见问题)
-- [更新日志](#-更新日志)
-- [贡献指南](#-贡献指南)
-- [许可证](#-许可证)
+- [✨ 功能特性](#-功能特性)
+- [🚀 快速开始](#-快速开始)
+- [💻 使用说明](#-使用说明)
+- [📁 项目结构](#-项目结构)
+- [⚙️ 配置说明](#-配置说明)
+- [📄 许可证](#-许可证)
 
 ## ✨ 功能特性
 
@@ -34,46 +30,9 @@
 ### 🛠️ 技术特性
 - **模块化设计**: 清晰的代码结构，易于维护和扩展
 - **配置管理**: 灵活的配置文件系统，支持环境变量
-- **日志系统**: 完善的日志记录，支持多级别日志输出
+- **日志系统**: 完善的日志记录，支持多级别日志输出和自动清理
 - **性能监控**: 实时性能统计和监控功能
 - **速率限制**: 智能请求频率控制，避免被反爬虫机制检测
-
-### 📊 数据处理
-- **数据清洗**: 自动清理和格式化爬取的数据
-- **去重处理**: 智能识别和去除重复数据
-- **数据验证**: 确保数据完整性和准确性
-- **统计分析**: 提供基础的数据统计功能
-
-## 📁 项目结构
-
-```
-Pyhton_douyin_hot/
-├── src/                          # 源代码目录
-│   ├── config/                   # 配置管理模块
-│   │   ├── __init__.py
-│   │   └── config_manager.py     # 配置管理器
-│   ├── core/                     # 核心模块
-│   │   ├── __init__.py
-│   │   ├── constants.py          # 常量定义
-│   │   └── models.py             # 数据模型
-│   ├── spider/                   # 爬虫模块
-│   │   ├── __init__.py
-│   │   ├── base_spider.py        # 基础爬虫类
-│   │   └── douyin_spider.py      # 抖音爬虫实现
-│   └── utils/                    # 工具模块
-│       ├── __init__.py
-│       ├── formatters.py         # 数据格式化工具
-│       ├── logger.py             # 日志管理
-│       └── performance.py        # 性能监控工具
-├── douyin_data/                  # 数据输出目录
-├── main.py                       # 主程序入口
-├── config.json                   # 配置文件
-├── environment.py                # 环境变量配置
-├── pyproject.toml                # 项目配置和依赖管理
-├── .gitignore                    # Git忽略文件
-├── README.md                     # 项目说明文档
-└── LICENSE                       # 许可证文件
-```
 
 ## 🚀 快速开始
 
@@ -107,47 +66,6 @@ Pyhton_douyin_hot/
    ```bash
    python main.py
    ```
-
-## 📦 安装指南
-
-```bash
-# 克隆仓库
-git clone https://github.com/MingTechPro/pyhton_douyin_hot.git
-cd pyhton_douyin_hot
-
-# 创建虚拟环境（推荐）
-python -m venv venv
-source venv/bin/activate  # Linux/macOS
-# 或
-venv\Scripts\activate     # Windows
-
-# 安装项目
-pip install -e .
-
-# 安装开发依赖（可选）
-pip install -e ".[dev,test]"
-```
-
-### 依赖说明
-
-#### 核心依赖
-- **DrissionPage**: 网页自动化工具
-- **requests**: HTTP 请求库
-- **pandas**: 数据处理库
-- **numpy**: 数值计算库
-- **aiohttp**: 异步 HTTP 客户端
-- **redis**: 缓存数据库
-- **pydantic**: 数据验证库
-- **psutil**: 系统监控库
-- **asyncio-throttle**: 异步限流库
-- **pyyaml**: YAML配置文件支持
-- **python-dotenv**: 环境变量管理
-- **colorlog**: 彩色日志输出
-
-#### 可选依赖
-- **测试工具**: pytest, pytest-asyncio, pytest-cov
-- **代码质量**: black, flake8, mypy
-- **文档生成**: sphinx, sphinx-rtd-theme
 
 ## 💻 使用说明
 
@@ -196,7 +114,7 @@ python main.py --format csv -o hot_data.csv
 | `--max-items` | `-n` | int | 10 | 最大获取项目数 |
 | `--interval` | `-i` | float | 1.0 | 请求间隔时间(秒) |
 | `--output` | `-o` | str | - | 输出文件路径 |
-| `--format` | `-f` | str | json | 输出格式(json/csv/txt/md) |
+| `--format` | `-f` | str | json | 输出格式(json/csv/txt/markdown) |
 | `--no-skip-top` | - | flag | False | 不跳过热榜置顶 |
 | `--debug` | `-d` | flag | False | 开启调试模式 |
 | `--performance` | `-p` | flag | False | 显示性能信息 |
@@ -222,6 +140,41 @@ python main.py -n 50 -i 3.0 --performance
 #### 示例 4：调试模式运行
 ```bash
 python main.py --debug -n 5
+```
+
+## 📁 项目结构
+
+```
+Pyhton_douyin_hot/
+├── src/                          # 源代码目录
+│   ├── config/                   # 配置管理模块
+│   │   ├── __init__.py
+│   │   └── config_manager.py     # 配置管理器
+│   ├── core/                     # 核心模块
+│   │   ├── __init__.py
+│   │   ├── constants.py          # 常量定义
+│   │   └── models.py             # 数据模型
+│   ├── spider/                   # 爬虫模块
+│   │   ├── __init__.py
+│   │   ├── base_spider.py        # 基础爬虫类
+│   │   └── douyin_spider.py      # 抖音爬虫实现
+│   └── utils/                    # 工具模块
+│       ├── __init__.py
+│       ├── formatters.py         # 数据格式化工具
+│       ├── logger.py             # 日志管理
+│       ├── log_cleaner.py        # 日志清理工具
+│       └── performance.py        # 性能监控工具
+├── douyin_data/                  # 数据输出目录
+├── logs/                         # 日志文件目录
+├── main.py                       # 主程序入口
+├── manage_logs.py                # 日志管理脚本
+├── config.json                   # 配置文件
+├── environment.py                # 环境变量配置
+├── pyproject.toml                # 项目配置和依赖管理
+├── .gitignore                    # Git忽略文件
+├── README.md                     # 项目说明文档
+├── DEVELOPMENT.md                # 开发文档
+└── LICENSE                       # 许可证文件
 ```
 
 ## ⚙️ 配置说明
@@ -289,208 +242,6 @@ export DOUYIN_OUTPUT_FORMAT=csv
 export DOUYIN_LOG_LEVEL=DEBUG
 ```
 
-### 配置项详解
-
-#### URLs 配置
-- `hot_list`: 抖音热榜页面 URL
-- `video`: 视频详情页面 URL
-
-#### Request 配置
-- `headers`: HTTP 请求头配置
-- `timeouts`: 请求超时时间设置
-- `retry`: 重试机制配置
-
-#### Crawler 配置
-- `max_items`: 最大获取项目数
-- `request_interval`: 请求间隔时间
-- `skip_top_item`: 是否跳过热榜置顶
-- `enable_cache`: 是否启用缓存
-- `cache_duration`: 缓存持续时间
-
-#### Output 配置
-- `format`: 输出格式 (json/csv/txt/md)
-- `indent`: JSON 格式化缩进
-- `ensure_ascii`: 是否确保 ASCII 编码
-- `default_path`: 默认输出路径
-
-#### Logging 配置
-- `level`: 日志级别
-- `console_level`: 控制台日志级别
-- `file_level`: 文件日志级别
-- `log_file`: 日志文件路径
-
-## 📚 API 文档
-
-### 核心类
-
-#### DouyinSpider
-
-主要的爬虫类，负责数据爬取和处理。
-
-```python
-from src.spider.douyin_spider import DouyinSpider
-
-# 创建爬虫实例
-spider = DouyinSpider()
-
-# 获取热榜数据
-hot_data = await spider.get_hot_list(max_items=10)
-```
-
-**方法说明：**
-
-- `get_hot_list(max_items: int = 10)`: 获取热榜数据
-- `get_video_detail(video_id: str)`: 获取视频详情
-- `process_data(raw_data: dict)`: 处理原始数据
-
-#### ConfigManager
-
-配置管理类，负责加载和管理配置。
-
-```python
-from src.config.config_manager import ConfigManager
-
-# 创建配置管理器
-config = ConfigManager()
-
-# 获取配置项
-max_items = config.get('crawler.max_items')
-```
-
-**方法说明：**
-
-- `get(key: str, default=None)`: 获取配置项
-- `set(key: str, value)`: 设置配置项
-- `load_config()`: 加载配置文件
-- `save_config()`: 保存配置文件
-
-#### LogManager
-
-日志管理类，提供统一的日志记录功能。
-
-```python
-from src.utils.logger import LogManager
-
-# 创建日志管理器
-logger = LogManager.get_logger(__name__)
-
-# 记录日志
-logger.info("开始爬取数据")
-logger.error("发生错误", exc_info=True)
-```
-
-### 数据模型
-
-#### HotListResponse
-
-热榜数据响应模型。
-
-```python
-from src.core.models import HotListResponse
-
-# 创建响应对象
-response = HotListResponse(
-    success=True,
-    data=hot_data,
-    timestamp=datetime.now(),
-    total_count=len(hot_data)
-)
-```
-
-#### CrawlResult
-
-爬取结果模型。
-
-```python
-from src.core.models import CrawlResult
-
-# 创建结果对象
-result = CrawlResult(
-    items=hot_items,
-    performance_stats=stats,
-    errors=errors
-)
-```
-
-## 🛠️ 开发指南
-
-### 开发环境设置
-
-1. **克隆项目并安装开发依赖**
-   ```bash
-   git clone https://github.com/MingTechPro/pyhton_douyin_hot.git
-   cd pyhton_douyin_hot
-   pip install -e ".[dev,test]"
-   ```
-
-2. **安装 pre-commit 钩子**
-   ```bash
-   pre-commit install
-   ```
-
-3. **运行测试**
-   ```bash
-   pytest
-   ```
-
-### 代码规范
-
-项目使用以下工具确保代码质量：
-
-- **Black**: 代码格式化
-- **Flake8**: 代码风格检查
-- **MyPy**: 类型检查
-- **Pre-commit**: Git 钩子
-
-### 添加新功能
-
-1. **创建功能分支**
-   ```bash
-   git checkout -b feature/new-feature
-   ```
-
-2. **编写代码和测试**
-   ```python
-   # 在 src/ 目录下添加新模块
-   # 在 tests/ 目录下添加对应测试
-   ```
-
-3. **运行测试和检查**
-   ```bash
-   pytest
-   black src/ tests/
-   flake8 src/ tests/
-   mypy src/
-   ```
-
-4. **提交代码**
-   ```bash
-   git add .
-   git commit -m "feat: add new feature"
-   ```
-
-### 测试指南
-
-#### 运行所有测试
-```bash
-pytest
-```
-
-#### 运行特定测试
-```bash
-pytest tests/test_spider.py
-```
-
-#### 运行性能测试
-```bash
-pytest -m "slow"
-```
-
-#### 生成测试覆盖率报告
-```bash
-pytest --cov=src --cov-report=html
-```
-
 ## ❓ 常见问题
 
 ### Q1: 程序运行时报网络错误怎么办？
@@ -519,22 +270,7 @@ pytest --cov=src --cov-report=html
 - **TXT**: 纯文本格式，便于阅读
 - **Markdown**: 富文本格式，便于文档化
 
-### Q4: 如何自定义输出格式？
-
-**A**: 可以通过以下方式：
-- 修改 `src/utils/formatters.py` 文件
-- 添加新的格式化函数
-- 在配置文件中注册新格式
-
-### Q5: 缓存机制如何工作？
-
-**A**: 缓存机制说明：
-- 默认缓存时间为 5 分钟
-- 缓存键基于请求参数生成
-- 支持 Redis 和内存缓存
-- 可通过配置文件调整缓存策略
-
-### Q6: 如何获取抖音Cookie？
+### Q4: 如何获取抖音Cookie？
 
 **A**: 获取Cookie的步骤：
 1. 打开浏览器，访问抖音网站
@@ -560,66 +296,9 @@ pytest --cov=src --cov-report=html
 - ✨ 命令行参数支持
 - 📚 完善文档和示例
 
-## 🤝 贡献指南
-
-我们欢迎所有形式的贡献！请阅读以下指南：
-
-### 贡献方式
-
-1. **报告 Bug**: 在 GitHub Issues 中报告问题
-2. **功能建议**: 提出新功能建议
-3. **代码贡献**: 提交 Pull Request
-4. **文档改进**: 完善文档和示例
-5. **测试贡献**: 添加测试用例
-
-### 提交规范
-
-我们使用 [Conventional Commits](https://www.conventionalcommits.org/) 规范：
-
-- `feat`: 新功能
-- `fix`: 修复 Bug
-- `docs`: 文档更新
-- `style`: 代码格式调整
-- `refactor`: 代码重构
-- `test`: 测试相关
-- `chore`: 构建过程或辅助工具的变动
-
-### Pull Request 流程
-
-1. Fork 项目到你的 GitHub 账户
-2. 创建功能分支 (`git checkout -b feature/amazing-feature`)
-3. 提交更改 (`git commit -m 'feat: add amazing feature'`)
-4. 推送到分支 (`git push origin feature/amazing-feature`)
-5. 创建 Pull Request
-
-### 开发环境
-
-确保你的开发环境满足以下要求：
-
-- Python 3.8+
-- 所有开发依赖已安装
-- 代码通过所有测试
-- 符合代码规范要求
-
 ## 📄 许可证
 
 本项目采用 [Apache License 2.0](https://opensource.org/licenses/Apache-2.0) 许可证。
-
-```
-Copyright 2025 Douyin Spider Contributors
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-```
 
 ## 📞 联系我
 

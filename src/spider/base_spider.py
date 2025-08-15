@@ -146,9 +146,9 @@ class BaseSpider(ABC):
         """
         browser = None
         try:
-            self.logger.info("正在初始化浏览器...")
+            self.logger.info("🔄 初始化浏览器...")
             browser = ChromiumPage()
-            self.logger.info("浏览器初始化成功")
+            self.logger.info("🌐 浏览器就绪")
             yield browser
         except Exception as e:
             self.logger.error(f"浏览器创建失败：{str(e)}")
@@ -157,7 +157,7 @@ class BaseSpider(ABC):
             if browser:
                 try:
                     browser.quit()
-                    self.logger.info("浏览器已正确关闭")
+                    self.logger.info("🔒 浏览器已关闭")
                 except Exception as e:
                     self.logger.error(f"关闭浏览器时出现错误：{str(e)}")
     
@@ -321,28 +321,36 @@ class BaseSpider(ABC):
         
         return url
     
-    def record_request(self, success: bool = True) -> None:
+    def record_request(self, success: bool = True, duration: float = 0.0) -> None:
         """
         记录请求统计信息
         
         更新请求计数器，用于性能监控和统计。
         
         @param {bool} success - 请求是否成功，默认为True
+        @param {float} duration - 请求持续时间，默认为0.0
         @returns {None}
         
         @example
+            start_time = time.time()
             try:
                 # 执行请求
                 response = self.make_request()
-                self.record_request(success=True)
+                duration = time.time() - start_time
+                self.record_request(success=True, duration=duration)
             except Exception:
-                self.record_request(success=False)
+                duration = time.time() - start_time
+                self.record_request(success=False, duration=duration)
         """
         self._request_count += 1
         if success:
             self._success_count += 1
         else:
             self._error_count += 1
+            
+        # 如果存在性能监控器，则记录到性能监控器
+        if hasattr(self, 'perf_monitor') and self.perf_monitor:
+            self.perf_monitor.record_request(duration, success)
     
     def get_stats(self) -> Dict[str, Any]:
         """

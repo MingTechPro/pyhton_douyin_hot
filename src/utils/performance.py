@@ -39,6 +39,9 @@
 import time
 import psutil
 import threading
+import json
+import os
+from pathlib import Path
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -273,21 +276,25 @@ class PerformanceMonitor:
     def _start_system_monitoring(self) -> None:
         """启动系统资源监控"""
         def monitor_system():
+            process = psutil.Process()
+            # 初始化CPU监控，第一次调用总是返回0
+            process.cpu_percent()
+            
             while self._monitoring:
                 try:
                     # 监控内存使用
-                    process = psutil.Process()
                     memory_info = process.memory_info()
                     memory_mb = memory_info.rss / 1024 / 1024
                     self.metrics.memory_usage = memory_mb
                     self.metrics.memory_history.append(memory_mb)
                     
-                    # 监控CPU使用
+                    # 监控CPU使用（需要间隔来计算）
+                    time.sleep(0.1)  # 短暂间隔以确保CPU计算准确
                     cpu_percent = process.cpu_percent()
                     self.metrics.cpu_usage = cpu_percent
                     self.metrics.cpu_history.append(cpu_percent)
                     
-                    time.sleep(1)  # 每秒监控一次
+                    time.sleep(0.9)  # 剩余时间，总共1秒
                 except Exception:
                     break
         
@@ -317,19 +324,48 @@ def performance_monitor():
 
 
 class CacheManager:
-    """缓存管理器"""
+    """
+    缓存管理器
     
-    def __init__(self, max_size: int = 100, ttl: int = 300):
+    提供内存缓存和文件持久化缓存功能，支持TTL过期机制。
+    
+    @author: MingTechPro
+    @version: 1.0.0
+    @date: 2025-08-15
+    
+    主要功能:
+    - 内存缓存管理
+    - 文件持久化缓存
+    - TTL过期机制
+    - 缓存大小限制
+    - 线程安全操作
+    
+    @example
+        cache = CacheManager(max_size=100, ttl=3600, enable_persistence=True)
+        cache.set("key", "value")
+        value = cache.get("key")
+    """
+    
+    def __init__(self, max_size: int = 100, ttl: int = 300, enable_persistence: bool = True, cache_dir: str = "cache"):
         """
         初始化缓存管理器
         Args:
             max_size: 最大缓存条目数
             ttl: 缓存生存时间（秒）
+            enable_persistence: 是否启用文件持久化
+            cache_dir: 缓存文件目录
         """
         self.max_size = max_size
         self.ttl = ttl
+        self.enable_persistence = enable_persistence
+        self.cache_dir = Path(cache_dir)
         self._cache: Dict[str, Dict[str, Any]] = {}
         self._lock = threading.Lock()
+        
+        # 创建缓存目录
+        if self.enable_persistence:
+            self.cache_dir.mkdir(exist_ok=True)
+            self._load_from_file()
         
     def get(self, key: str) -> Optional[Any]:
         """
@@ -367,11 +403,17 @@ class CacheManager:
                 'value': value,
                 'timestamp': time.time()
             }
+            
+            # 保存到文件
+            if self.enable_persistence:
+                self._save_to_file()
     
     def clear(self) -> None:
         """清空缓存"""
         with self._lock:
             self._cache.clear()
+            if self.enable_persistence:
+                self._save_to_file()
     
     def size(self) -> int:
         """获取缓存大小"""
@@ -394,8 +436,119 @@ class CacheManager:
             
             for key in expired_keys:
                 del self._cache[key]
+            
+            # 保存到文件
+            if self.enable_persistence and expired_keys:
+                self._save_to_file()
         
         return len(expired_keys)
+    
+    def _save_to_file(self) -> None:
+        """保存缓存到文件"""
+        try:
+            cache_file = self.cache_dir / "cache.json"
+            
+            # 准备序列化数据
+            serializable_cache = {}
+            for key, item in self._cache.items():
+                # 尝试序列化值
+                try:
+                    # 如果是自定义对象，尝试转换为字典
+                    if hasattr(item['value'], 'to_dict'):
+                        serializable_value = item['value'].to_dict()
+                    elif hasattr(item['value'], '__dict__'):
+                        serializable_value = item['value'].__dict__
+                    else:
+                        serializable_value = item['value']
+                    
+                    serializable_cache[key] = {
+                        'value': serializable_value,
+                        'timestamp': item['timestamp']
+                    }
+                except Exception:
+                    # 如果无法序列化，跳过该项
+                    continue
+            
+            with open(cache_file, 'w', encoding='utf-8') as f:
+                json.dump(serializable_cache, f, ensure_ascii=False, indent=2)
+                
+        except Exception as e:
+            # 静默处理文件保存错误
+            pass
+    
+    def _load_from_file(self) -> None:
+        """从文件加载缓存"""
+        try:
+            cache_file = self.cache_dir / "cache.json"
+            if not cache_file.exists():
+                return
+            
+            with open(cache_file, 'r', encoding='utf-8') as f:
+                file_cache = json.load(f)
+            
+            current_time = time.time()
+            for key, item in file_cache.items():
+                # 检查是否过期
+                if current_time - item['timestamp'] < self.ttl:
+                    # 尝试恢复对象
+                    try:
+                        restored_value = self._restore_object(item['value'])
+                        if restored_value is not None:
+                            self._cache[key] = {
+                                'value': restored_value,
+                                'timestamp': item['timestamp']
+                            }
+                    except Exception:
+                        # 如果恢复失败，跳过该项
+                        continue
+                    
+        except Exception as e:
+            # 静默处理文件加载错误
+            pass
+    
+    def _restore_object(self, data: Dict[str, Any]):
+        """从字典恢复对象"""
+        try:
+            # 检查是否是HotListResponse数据
+            if 'list' in data and 'total_count' in data and 'fetch_time' in data:
+                from ..core.models import HotListResponse, HotListItem, VideoArticle
+                from datetime import datetime
+                
+                # 恢复VideoArticle对象
+                def restore_article(article_data):
+                    return VideoArticle(
+                        title=article_data.get('article_title', ''),
+                        short_url=article_data.get('article_short_url', ''),
+                        video_url=article_data.get('article_video_url', ''),
+                        created_at=datetime.fromisoformat(article_data['created_at']) if article_data.get('created_at') else None
+                    )
+                
+                # 恢复HotListItem对象
+                def restore_hot_item(item_data):
+                    articles = [restore_article(article) for article in item_data.get('article', [])]
+                    return HotListItem(
+                        position=item_data.get('location', 0),
+                        title=item_data.get('list_title', ''),
+                        url=item_data.get('list_url', ''),
+                        popularity=item_data.get('list_popularity', 0),
+                        views=item_data.get('list_views', 0),
+                        articles=articles,
+                        created_at=datetime.fromisoformat(item_data['created_at']) if item_data.get('created_at') else None
+                    )
+                
+                # 恢复HotListResponse对象
+                items = [restore_hot_item(item_data) for item_data in data.get('list', [])]
+                fetch_time = datetime.fromisoformat(data['fetch_time']) if data.get('fetch_time') else None
+                
+                return HotListResponse(
+                    items=items,
+                    total_count=data.get('total_count', 0),
+                    fetch_time=fetch_time
+                )
+            
+            return data
+        except Exception:
+            return data
 
 
 class RateLimiter:

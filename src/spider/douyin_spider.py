@@ -44,8 +44,8 @@ class DouyinSpider(BaseSpider):
     @extends {BaseSpider} 基础爬虫类
     @implements {crawl} 爬取方法
     @implements {_fetch_hot_list_data} 获取热榜数据
-    @implements {_process_hot_item} 处理热榜项目
-    @implements {_extract_video_article} 提取视频文章信息
+    @implements {_process_hot_list_item} 处理热榜项目
+    @implements {_process_video_detail} 提取视频文章信息
     
     @example
         config = AppConfig()
@@ -120,14 +120,12 @@ class DouyinSpider(BaseSpider):
         items_success = 0
         
         try:
-            self.logger.info("开始执行抖音热榜爬取...")
-            
             # 检查缓存中是否有可用数据
             if self.cache_manager and self.config.enable_cache:
                 cache_key = f"hot_list_{datetime.now().strftime('%Y%m%d_%H')}_{self.config.max_items}"
                 cached_data = self.cache_manager.get(cache_key)
                 if cached_data:
-                    self.logger.info(f"从缓存获取数据，缓存键: {cache_key}")
+                    self.logger.info(f"💾 使用缓存数据")
                     return CrawlResult(
                         success=True,
                         data=cached_data,
@@ -173,15 +171,15 @@ class DouyinSpider(BaseSpider):
                 # 根据配置决定是否跳过第一条（置顶）数据
                 if self.config.skip_top_item and len(hot_items_list) > 1:
                     hot_items_list = hot_items_list[1:]
-                    self.logger.info("已跳过热榜置顶数据")
+                    self.logger.info("⏭️  跳过置顶数据")
                 
                 # 处理每个热榜项目
                 for i, hot_item_data in enumerate(hot_items_list):
-                    items_processed += 1
-                    
                     # 检查是否达到最大项目数限制
                     if i >= self.config.max_items:
                         break
+                    
+                    items_processed += 1
                     
                     try:
                         # 处理单个热榜项目
@@ -189,11 +187,11 @@ class DouyinSpider(BaseSpider):
                         if hot_item:
                             hot_list_response.items.append(hot_item)
                             items_success += 1
-                            self.logger.info(f"成功处理第 {i+1} 条热榜数据: {hot_item.title}")
+                            self.logger.info(f"✅ [{i+1}] {hot_item.title}")
                         else:
-                            self.logger.warning(f"第 {i+1} 条热榜数据处理失败")
+                            self.logger.warning(f"❌ [{i+1}] 处理失败")
                     except Exception as e:
-                        self.logger.error(f"处理第 {i+1} 条热榜数据时出错: {str(e)}")
+                        self.logger.error(f"❌ [{i+1}] 处理出错: {str(e)}")
                         continue
                     
                     # 请求间隔控制
@@ -204,7 +202,7 @@ class DouyinSpider(BaseSpider):
                 if self.cache_manager and self.config.enable_cache:
                     cache_key = f"hot_list_{datetime.now().strftime('%Y%m%d_%H')}_{self.config.max_items}"
                     self.cache_manager.set(cache_key, hot_list_response)
-                    self.logger.info(f"数据已缓存，缓存键: {cache_key}")
+                    self.logger.info("💾 数据已缓存")
                 
                 return CrawlResult(
                     success=True,
@@ -215,9 +213,9 @@ class DouyinSpider(BaseSpider):
                 )
                 
         except Exception as e:
-            self.logger.error(f"爬取过程中出现错误: {str(e)}")
+            self.logger.error(f"❌ 爬取过程出错: {str(e)}")
             if self.config.debug:
-                self.logger.error(f"错误详情: {traceback.format_exc()}")
+                self.logger.error(f"🔍 错误详情: {traceback.format_exc()}")
             return CrawlResult(
                 success=False,
                 error_message=str(e),
@@ -241,7 +239,6 @@ class DouyinSpider(BaseSpider):
         def _fetch():
             request_start = time.time()
             try:
-                self.logger.info(f"正在获取热榜数据：{self.config.hot_list_url}")
                 browser.listen.start(Constants.API_SEARCH_LIST)
                 browser.get(self.config.hot_list_url)
                 response = browser.listen.wait(timeout=self.config.hot_list_timeout)
@@ -254,16 +251,16 @@ class DouyinSpider(BaseSpider):
                     raise Exception("响应体为空")
                     
                 request_duration = time.time() - request_start
-                self.logger.info(f"热榜数据获取成功，耗时: {request_duration:.2f}秒")
+                self.logger.info(f"✅ 热榜数据获取成功 ({request_duration:.2f}秒)")
                 
                 # 记录请求统计
-                self.record_request(True)
+                self.record_request(True, request_duration)
                 
                 return data
             except Exception as e:
                 request_duration = time.time() - request_start
-                self.logger.error(f"获取热榜数据失败，耗时: {request_duration:.2f}秒，错误：{str(e)}")
-                self.record_request(False)
+                self.logger.error(f"❌ 获取热榜数据失败 ({request_duration:.2f}秒): {str(e)}")
+                self.record_request(False, request_duration)
                 raise
         
         return _fetch()
@@ -282,27 +279,34 @@ class DouyinSpider(BaseSpider):
             delay=self.config.video_detail_delay
         )
         def _fetch():
+            request_start = time.time()
             try:
-                self.logger.info(f"正在获取视频详情：{url}")
+                # 简化视频详情获取日志
                 browser.listen.start(Constants.API_AWEME_DETAIL)
                 browser.get(url)
                 response = browser.listen.wait(timeout=self.config.video_detail_timeout)
                 
                 if response is None:
                     self.logger.warning("获取视频详情超时")
+                    request_duration = time.time() - request_start
+                    self.record_request(False, request_duration)
                     return None
                     
                 data = response.response.body
                 if data is None:
                     self.logger.warning("视频详情响应体为空")
+                    request_duration = time.time() - request_start
+                    self.record_request(False, request_duration)
                     return None
                     
-                self.logger.info("视频详情获取成功")
-                self.record_request(True)
+                request_duration = time.time() - request_start
+                # 记录成功请求
+                self.record_request(True, request_duration)
                 return data
             except Exception as e:
-                self.logger.error(f"获取视频详情失败：{str(e)}")
-                self.record_request(False)
+                request_duration = time.time() - request_start
+                self.logger.error(f"❌ 获取视频详情失败: {str(e)}")
+                self.record_request(False, request_duration)
                 return None
         
         return _fetch()
@@ -342,7 +346,7 @@ class DouyinSpider(BaseSpider):
                 # 如果禁用URL编码，使用原始方式（不推荐）
                 item_url = f"{self.config.hot_list_url}/{item_id}/{item_title}"
             
-            self.logger.info(f"标题：{item_title}")
+            # 记录调试信息
             self.logger.debug(f"位置：{item_position}, 热度：{item_popularity}, 浏览量：{item_views}")
             
             # 创建热榜项目

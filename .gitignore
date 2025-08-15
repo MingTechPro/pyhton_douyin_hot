@@ -144,4 +144,5 @@ environment.py
 
 # Data and logs directories
 douyin_data/
+cache/
 logs/

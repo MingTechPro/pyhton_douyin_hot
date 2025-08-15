@@ -55,21 +55,16 @@ def format_number(num: Union[int, float]) -> str:
     """
     格式化数字显示
     
-    将大数字转换为更易读的格式，如万、亿等。
+    将大数字转换为带逗号的易读格式。
     
     @param {Union[int, float]} num - 需要格式化的数字
     @return {str} - 格式化后的数字字符串
     
     @example
-        format_number(12345)  # 返回: "1.2万"
-        format_number(123456789)  # 返回: "1.2亿"
+        format_number(12345)  # 返回: "12,345"
+        format_number(123456789)  # 返回: "123,456,789"
     """
-    if num < 10000:
-        return str(num)
-    elif num < 100000000:
-        return f"{num / 10000:.1f}万"
-    else:
-        return f"{num / 100000000:.1f}亿"
+    return f"{num:,}"
 
 
 def format_datetime(dt: datetime, format_str: str = "%Y-%m-%d %H:%M:%S") -> str:
@@ -310,8 +305,8 @@ def convert_to_markdown(hot_list_response) -> str:
     for item in hot_list_response.items:
         lines.append(f"## {item.position}. {item.title}")
         lines.append("")
-        lines.append(f"- **热度**: {item.popularity:,}")
-        lines.append(f"- **浏览量**: {item.views:,}")
+        lines.append(f"- **热度**: {format_number(item.popularity)}")
+        lines.append(f"- **浏览量**: {format_number(item.views)}")
         lines.append(f"- **链接**: [{item.url}]({item.url})")
         lines.append("")
         
@@ -384,8 +379,8 @@ def convert_to_txt(hot_list_response) -> str:
     
     for item in hot_list_response.items:
         lines.append(f"{item.position}. {item.title}")
-        lines.append(f"   热度: {item.popularity:,}")
-        lines.append(f"   浏览量: {item.views:,}")
+        lines.append(f"   热度: {format_number(item.popularity)}")
+        lines.append(f"   浏览量: {format_number(item.views)}")
         lines.append(f"   链接: {item.url}")
         lines.append("")
         
