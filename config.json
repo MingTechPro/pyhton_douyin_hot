@@ -1,0 +1,52 @@
+{
+  "urls": {
+    "hot_list": "https://www.douyin.com/hot",
+    "video": "https://www.douyin.com/video"
+  },
+  "request": {
+    "headers": {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"
+    },
+    "timeouts": {
+      "hot_list": 30,
+      "video_detail": 10
+    },
+    "retry": {
+      "hot_list_max_retries": 3,
+      "hot_list_delay": 2,
+      "video_detail_max_retries": 2,
+      "video_detail_delay": 2
+    }
+  },
+  "crawler": {
+    "max_items": 10,
+    "request_interval": 1,
+    "skip_top_item": true,
+    "enable_cache": true,
+    "cache_duration": 300,
+    "concurrent_requests": false
+  },
+  "url_encoding": {
+    "enabled": true,
+    "method": "url_encode",
+    "encoding": "utf-8",
+    "safe_chars": ""
+  },
+  "output": {
+    "format": "json",
+    "indent": 2,
+    "ensure_ascii": false,
+    "default_path": "douyin_data",
+    "filename_template": "douyin_hotlist_{timestamp}"
+  },
+  "logging": {
+    "level": "INFO",
+    "console_level": "INFO",
+    "file_level": "DEBUG",
+    "log_file": "logs/spider_{timestamp}.log",
+    "max_file_size": "10MB",
+    "backup_count": 5,
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    "date_format": "%Y-%m-%d %H:%M:%S"
+  }
+}
