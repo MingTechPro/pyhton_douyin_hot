@@ -2,7 +2,7 @@
 基础爬虫类模块
 
 @author: MingTechPro
-@version: 2.1.0
+@version: 1.0.0
 @date: 2025-08-15
 @description: 该模块定义了爬虫系统的基础类，提供通用的爬虫功能和浏览器管理。
              采用抽象基类设计，为具体的爬虫实现提供统一的接口和基础功能。
@@ -49,7 +49,7 @@ class RequestResult:
     封装HTTP请求的执行结果，包含成功状态、数据、错误信息等。
     
     @author: MingTechPro
-    @version: 2.1.0
+    @version: 1.0.0
     @date: 2025-08-15
     
     字段说明:
@@ -82,7 +82,7 @@ class BaseSpider(ABC):
     具体的爬虫实现类需要继承此类并实现抽象方法。
     
     @author: MingTechPro
-    @version: 2.1.0
+    @version: 1.0.0
     @date: 2025-08-15
     
     主要功能:

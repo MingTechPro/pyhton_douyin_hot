@@ -2,7 +2,7 @@
 配置管理器模块
 
 @author: MingTechPro
-@version: 2.1.0
+@version: 1.0.0
 @date: 2025-08-15
 @description: 该模块负责管理抖音爬虫的所有配置信息，包括从配置文件加载、
              环境变量覆盖、配置验证等功能。采用单例模式确保配置的一致性。
@@ -48,7 +48,7 @@ class AppConfig:
     包含抖音爬虫运行所需的所有配置参数。
     
     @author: MingTechPro
-    @version: 2.1.0
+    @version: 1.0.0
     @date: 2025-08-15
     
     配置分类:
@@ -195,7 +195,7 @@ class ConfigManager:
     环境变量覆盖、配置验证等功能。采用单例模式确保配置的一致性。
     
     @author: MingTechPro
-    @version: 2.1.0
+    @version: 1.0.0
     @date: 2025-08-15
     
     主要功能:

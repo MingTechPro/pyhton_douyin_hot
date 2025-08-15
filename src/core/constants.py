@@ -2,7 +2,7 @@
 常量定义模块
 
 @author: MingTechPro
-@version: 2.1.0
+@version: 1.0.0
 @date: 2025-08-15
 @description: 该模块定义了抖音爬虫系统中使用的所有常量，
              包括API端点、数据字段名、默认值、状态码等。
@@ -41,7 +41,7 @@ class Constants:
     定义抖音爬虫系统中使用的所有常量值，提供统一的常量管理。
     
     @author: MingTechPro
-    @version: 2.1.0
+    @version: 1.0.0
     @date: 2025-08-15
     
     常量分类:

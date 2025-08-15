@@ -2,7 +2,7 @@
 数据模型定义模块
 
 @author: MingTechPro
-@version: 2.1.0
+@version: 1.0.0
 @date: 2025-08-15
 @description: 该模块定义了抖音爬虫系统中使用的所有数据模型，
              使用dataclass装饰器提供类型安全和自动生成的方法。
@@ -50,7 +50,7 @@ class VideoArticle:
     表示抖音平台上的单个视频文章信息，包含标题、链接等基本信息。
     
     @author: MingTechPro
-    @version: 2.1.0
+    @version: 1.0.0
     @date: 2025-08-15
     
     字段说明:
@@ -104,7 +104,7 @@ class HotListItem:
     表示抖音热榜中的单个热门项目，包含排名、标题、热度等信息。
     
     @author: MingTechPro
-    @version: 2.1.0
+    @version: 1.0.0
     @date: 2025-08-15
     
     字段说明:
@@ -166,7 +166,7 @@ class HotListResponse:
     表示抖音热榜的完整响应数据，包含热榜项目列表和元数据信息。
     
     @author: MingTechPro
-    @version: 2.1.0
+    @version: 1.0.0
     @date: 2025-08-15
     
     字段说明:
@@ -213,7 +213,7 @@ class CrawlResult:
     表示爬虫执行的结果信息，包含成功状态、数据、错误信息等。
     
     @author: MingTechPro
-    @version: 2.1.0
+    @version: 1.0.0
     @date: 2025-08-15
     
     字段说明:
@@ -272,7 +272,7 @@ class PerformanceMetrics:
     表示爬虫执行的性能统计信息，用于监控和优化。
     
     @author: MingTechPro
-    @version: 2.1.0
+    @version: 1.0.0
     @date: 2025-08-15
     
     字段说明:

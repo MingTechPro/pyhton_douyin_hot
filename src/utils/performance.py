@@ -2,7 +2,7 @@
 性能监控工具模块
 
 @author: MingTechPro
-@version: 2.1.0
+@version: 1.0.0
 @date: 2025-08-15
 @description: 该模块提供了完整的性能监控功能，包括系统资源监控、请求统计、
              缓存管理、速率限制等。帮助开发者分析和优化爬虫性能。
@@ -53,7 +53,7 @@ class PerformanceMetrics:
     存储和管理爬虫执行过程中的各种性能指标数据。
     
     @author: MingTechPro
-    @version: 2.1.0
+    @version: 1.0.0
     @date: 2025-08-15
     
     字段说明:
@@ -131,7 +131,7 @@ class PerformanceMonitor:
     支持实时监控和多线程安全。
     
     @author: MingTechPro
-    @version: 2.1.0
+    @version: 1.0.0
     @date: 2025-08-15
     
     主要功能:

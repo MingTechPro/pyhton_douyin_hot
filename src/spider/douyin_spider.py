@@ -2,7 +2,7 @@
 抖音爬虫实现模块
 
 @author: MingTechPro
-@version: 2.1.0
+@version: 1.0.0
 @date: 2025-08-15
 @description: 该模块实现了抖音热榜数据的爬取功能，继承自BaseSpider基类，
              提供了完整的抖音热榜数据获取、解析和处理功能。

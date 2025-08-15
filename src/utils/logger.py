@@ -2,7 +2,7 @@
 日志管理器模块
 
 @author: MingTechPro
-@version: 2.1.0
+@version: 1.0.0
 @date: 2025-08-15
 @description: 该模块提供了统一的日志管理功能，采用单例模式确保日志配置的一致性。
              支持控制台和文件双重输出，自动日志轮转，彩色输出等功能。
@@ -44,7 +44,7 @@ class LogManager:
     支持控制台和文件双重输出，自动日志轮转等特性。
     
     @author: MingTechPro
-    @version: 2.1.0
+    @version: 1.0.0
     @date: 2025-08-15
     
     主要特性:

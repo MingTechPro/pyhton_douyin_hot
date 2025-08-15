@@ -4,7 +4,7 @@
 使用模块化架构，提供更好的可维护性和扩展性
 
 @author: MingTechPro
-@version: 2.1.0
+@version: 1.0.0
 @date: 2025-08-15
 @description: 这是一个经过优化的抖音热榜爬虫程序，采用模块化设计，
              支持多种输出格式、性能监控、缓存机制等功能。
@@ -129,7 +129,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         '--version',
         action='version',
-        version='抖音热榜爬虫 v2.1.0 (优化版本)'
+        version='抖音热榜爬虫 v1.0.0 (优化版本)'
     )
     
     return parser.parse_args()

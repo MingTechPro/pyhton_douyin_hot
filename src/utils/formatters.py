@@ -2,7 +2,7 @@
 数据格式化工具模块
 
 @author: MingTechPro
-@version: 2.1.0
+@version: 1.0.0
 @date: 2025-08-15
 @description: 该模块提供了各种数据格式化工具函数，用于处理和转换不同格式的数据。
 

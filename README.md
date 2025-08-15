@@ -66,9 +66,6 @@ Pyhton_douyin_hot/
 │       ├── logger.py             # 日志管理
 │       └── performance.py        # 性能监控工具
 ├── douyin_data/                  # 数据输出目录
-├── logs/                         # 日志文件目录
-├── tests/                        # 测试文件目录
-├── docs/                         # 文档目录
 ├── main.py                       # 主程序入口
 ├── config.json                   # 配置文件
 ├── environment.py                # 环境变量配置
@@ -91,8 +88,8 @@ Pyhton_douyin_hot/
 
 1. **克隆项目**
    ```bash
-   git clone https://github.com/yourusername/douyin-spider.git
-   cd douyin-spider
+   git clone https://github.com/MingTechPro/pyhton_douyin_hot.git
+   cd pyhton_douyin_hot
    ```
 
 2. **安装依赖**
@@ -100,7 +97,13 @@ Pyhton_douyin_hot/
    pip install -e .
    ```
 
-3. **运行程序**
+3. **配置环境**
+   ```bash
+   # 编辑 environment.py 文件，配置你的抖音Cookie
+   # 从浏览器开发者工具中复制完整的cookie值
+   ```
+
+4. **运行程序**
    ```bash
    python main.py
    ```
@@ -109,8 +112,8 @@ Pyhton_douyin_hot/
 
 ```bash
 # 克隆仓库
-git clone https://github.com/yourusername/douyin-spider.git
-cd douyin-spider
+git clone https://github.com/MingTechPro/pyhton_douyin_hot.git
+cd pyhton_douyin_hot
 
 # 创建虚拟环境（推荐）
 python -m venv venv
@@ -135,6 +138,11 @@ pip install -e ".[dev,test]"
 - **aiohttp**: 异步 HTTP 客户端
 - **redis**: 缓存数据库
 - **pydantic**: 数据验证库
+- **psutil**: 系统监控库
+- **asyncio-throttle**: 异步限流库
+- **pyyaml**: YAML配置文件支持
+- **python-dotenv**: 环境变量管理
+- **colorlog**: 彩色日志输出
 
 #### 可选依赖
 - **测试工具**: pytest, pytest-asyncio, pytest-cov
@@ -142,6 +150,25 @@ pip install -e ".[dev,test]"
 - **文档生成**: sphinx, sphinx-rtd-theme
 
 ## 💻 使用说明
+
+### 环境配置
+
+首先需要配置 `environment.py` 文件：
+
+```python
+"""
+环境配置文件
+用于存储敏感信息和用户自定义配置
+"""
+
+# 抖音请求Cookie配置
+# 从浏览器开发者工具中复制完整的cookie值
+DOUYIN_COOKIE = "your_cookie_here"
+
+# 可选配置覆盖（会覆盖config.json中的对应值）
+REQUEST_INTERVAL = None  # None表示使用config.json中的默认值
+MAX_ITEMS = None  # None表示使用config.json中的默认值
+```
 
 ### 基本使用
 
@@ -391,8 +418,8 @@ result = CrawlResult(
 
 1. **克隆项目并安装开发依赖**
    ```bash
-   git clone https://github.com/yourusername/douyin-spider.git
-   cd douyin-spider
+   git clone https://github.com/MingTechPro/pyhton_douyin_hot.git
+   cd pyhton_douyin_hot
    pip install -e ".[dev,test]"
    ```
 
@@ -473,6 +500,7 @@ pytest --cov=src --cov-report=html
 - 检查防火墙设置
 - 尝试使用代理服务器
 - 调整请求间隔时间
+- 确认Cookie配置是否正确
 
 ### Q2: 如何避免被反爬虫机制检测？
 
@@ -481,6 +509,7 @@ pytest --cov=src --cov-report=html
 - 使用随机 User-Agent
 - 启用代理轮换
 - 限制并发请求数量
+- 定期更新Cookie
 
 ### Q3: 数据输出格式有哪些？
 
@@ -505,29 +534,31 @@ pytest --cov=src --cov-report=html
 - 支持 Redis 和内存缓存
 - 可通过配置文件调整缓存策略
 
+### Q6: 如何获取抖音Cookie？
+
+**A**: 获取Cookie的步骤：
+1. 打开浏览器，访问抖音网站
+2. 登录你的抖音账号
+3. 按F12打开开发者工具
+4. 切换到Network标签页
+5. 刷新页面，找到任意请求
+6. 在请求头中找到Cookie字段并复制完整值
+7. 粘贴到 `environment.py` 文件的 `DOUYIN_COOKIE` 变量中
+
 ## 📝 更新日志
 
-### v2.1.0 (2025-08-15)
-- ✨ 新增模块化架构设计
+### v1.0.0 (2025-01-15)
+- 🎉 初始版本发布
+- ✨ 基础爬虫功能
+- ✨ 模块化架构设计
 - ✨ 支持多种输出格式 (JSON/CSV/TXT/Markdown)
 - ✨ 添加性能监控和统计功能
 - ✨ 实现智能缓存机制
 - ✨ 完善错误处理和重试机制
-- 🐛 修复数据解析问题
-- 📚 更新文档和示例
-
-### v2.0.0 (2025-08-01)
-- 🔄 重构项目架构
-- ✨ 添加配置管理系统
-- ✨ 实现日志记录功能
-- ✨ 支持命令行参数
-- 🐛 修复多个已知问题
-
-### v1.0.0 (2025-07-15)
-- 🎉 初始版本发布
-- ✨ 基础爬虫功能
-- ✨ JSON 格式输出
-- ✨ 简单配置支持
+- ✨ 配置管理系统
+- ✨ 日志记录功能
+- ✨ 命令行参数支持
+- 📚 完善文档和示例
 
 ## 🤝 贡献指南
 
@@ -590,11 +621,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ```
 
-## 📞 联系我们
+## 📞 联系我
 
-- **项目主页**: [https://github.com/yourusername/douyin-spider](https://github.com/yourusername/douyin-spider)
-- **问题反馈**: [https://github.com/yourusername/douyin-spider/issues](https://github.com/yourusername/douyin-spider/issues)
-- **邮箱**: developer@example.com
+- **项目主页**: [https://github.com/MingTechPro/Pyhton_douyin_hot.git](https://github.com/MingTechPro/Pyhton_douyin_hot.git)
+- **问题反馈**: [https://github.com/MingTechPro/Pyhton_douyin_hot/issues](https://github.com/MingTechPro/Pyhton_douyin_hot/issues)
+- **邮箱**: chenpeiming52001@163.com
 
 ## 🙏 致谢
 
