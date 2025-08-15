@@ -107,8 +107,6 @@ Pyhton_douyin_hot/
 
 ## 📦 安装指南
 
-### 方法一：从源码安装（推荐）
-
 ```bash
 # 克隆仓库
 git clone https://github.com/yourusername/douyin-spider.git
@@ -125,20 +123,6 @@ pip install -e .
 
 # 安装开发依赖（可选）
 pip install -e ".[dev,test]"
-```
-
-### 方法二：使用 pip 安装
-
-```bash
-pip install douyin-spider
-```
-
-### 方法三：使用 conda 安装
-
-```bash
-conda create -n douyin-spider python=3.8
-conda activate douyin-spider
-pip install douyin-spider
 ```
 
 ### 依赖说明
