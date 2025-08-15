@@ -65,5 +65,7 @@ git push origin feature/new-feature
 ## 注意事项
 
 - 确保 `.gitignore` 文件正确排除了敏感信息
-- `config.json` 和 `environment.py` 已被排除，如需共享配置模板，请创建 `config.example.json`
+- `config.json` 已被排除，如需共享配置模板，请创建 `config.example.json`
+- `environment.py` 已包含在版本控制中，可以共享环境配置
+- `douyin_data/` 和 `logs/` 文件夹已被排除，不会上传到GitHub
 - 定期更新README.md文档
