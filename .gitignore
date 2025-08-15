@@ -141,4 +141,5 @@ Thumbs.db
 # Project specific
 *.log
 config.json
-environment.py
+douyin_data/
+logs/
