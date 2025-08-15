@@ -140,6 +140,5 @@ Thumbs.db
 
 # Project specific
 *.log
-config.json
 douyin_data/
 logs/
