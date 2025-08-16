@@ -133,6 +133,7 @@ class BaseSpider(ABC):
         
         提供浏览器实例的自动创建和清理，确保资源正确释放。
         使用上下文管理器模式，支持with语句。
+        支持无头模式和其他浏览器配置选项。
         
         @yields {ChromiumPage} 浏览器实例
         
@@ -147,7 +148,54 @@ class BaseSpider(ABC):
         browser = None
         try:
             self.logger.info("🔄 初始化浏览器...")
-            browser = ChromiumPage()
+            
+            # 构建浏览器配置选项
+            browser_args = []
+            
+            # 无头模式配置
+            if getattr(self.config, 'browser_headless', False):
+                browser_args.append('--headless')
+                self.logger.info("🔇 浏览器将在后台模式运行（不显示窗口）")
+            else:
+                self.logger.info("🖥️  浏览器将在前台模式运行（显示窗口）")
+            
+            # 其他浏览器选项
+            if getattr(self.config, 'browser_disable_dev_shm_usage', True):
+                browser_args.append('--disable-dev-shm-usage')
+            
+            if getattr(self.config, 'browser_no_sandbox', False):
+                browser_args.append('--no-sandbox')
+            
+            # 添加常用的稳定性选项
+            browser_args.extend([
+                '--disable-blink-features=AutomationControlled',
+                '--disable-extensions',
+                '--disable-plugins',
+                '--disable-images',  # 不加载图片以提高速度
+            ])
+            
+            # 创建浏览器实例
+            if browser_args:
+                try:
+                    # 尝试新版本的导入方式
+                    from DrissionPage import ChromiumOptions
+                except ImportError:
+                    try:
+                        # 尝试旧版本的导入方式
+                        from DrissionPage.configs.chromium_options import ChromiumOptions
+                    except ImportError:
+                        # 如果都失败，使用基本的ChromiumPage
+                        self.logger.warning("无法导入ChromiumOptions，使用默认浏览器配置")
+                        browser = ChromiumPage()
+                        return browser
+                
+                options = ChromiumOptions()
+                for arg in browser_args:
+                    options.set_argument(arg)
+                browser = ChromiumPage(addr_or_opts=options)
+            else:
+                browser = ChromiumPage()
+            
             self.logger.info("🌐 浏览器就绪")
             yield browser
         except Exception as e:

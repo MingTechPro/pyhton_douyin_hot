@@ -37,6 +37,7 @@ from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Optional, Dict, Any
 from datetime import datetime
+from ..core.exceptions import ConfigurationException, SecurityException, ValidationException
 
 
 @dataclass
@@ -120,6 +121,22 @@ class AppConfig:
     url_encoding_encoding: str = "utf-8"           # URL编码字符集
     url_encoding_safe_chars: str = ""              # URL编码安全字符
     
+    # 浏览器配置组 - 浏览器运行选项
+    browser_headless: bool = False         # 是否启用无头模式（后台运行）
+    browser_disable_dev_shm_usage: bool = True   # 是否禁用/dev/shm使用
+    browser_no_sandbox: bool = False       # 是否禁用沙盒模式
+    
+    # 视频下载配置组 - 视频下载功能选项
+    video_download_enabled: bool = False           # 是否启用视频下载功能
+    video_download_dir: str = "douyin_video"       # 视频下载目录
+    video_download_max_file_size: int = 209715200  # 最大文件大小（200MB）
+    video_download_max_concurrent: int = 3         # 最大并发下载数
+    video_download_timeout: int = 30               # 下载超时时间（秒）
+    video_download_chunk_size: int = 8192          # 分块下载大小（字节）
+    video_download_max_retries: int = 3            # 最大重试次数
+    video_download_retry_delay: float = 1.0        # 重试延迟时间（秒）
+    video_download_auto_download: bool = False     # 是否自动下载视频
+    
     # 高级配置组 - 代理、限流、并发等
     enable_proxy: bool = False                     # 是否启用代理
     proxy_config: Dict[str, str] = field(default_factory=dict)  # 代理配置
@@ -135,57 +152,248 @@ class AppConfig:
         验证配置参数的有效性
         
         检查所有配置参数是否符合业务逻辑要求，确保配置的正确性。
-        如果发现无效配置，将抛出ValueError异常。
+        现在使用自定义异常类提供更精确的错误信息。
         
         @returns {None}
-        @throws {ValueError} 当配置参数无效时抛出
+        @throws {ConfigurationException} 当配置参数无效时抛出
+        @throws {SecurityException} 当安全配置有问题时抛出
+        @throws {ValidationException} 当参数验证失败时抛出
         
         @example
             config = AppConfig(...)
             try:
                 config.validate()
                 print("配置验证通过")
-            except ValueError as e:
-                print(f"配置验证失败: {e}")
+            except ConfigurationException as e:
+                print(f"配置错误: {e}")
+            except SecurityException as e:
+                print(f"安全问题: {e}")
         """
         # 验证URL配置
         if not self.hot_list_url or not self.hot_list_url.startswith('http'):
-            raise ValueError("热榜URL不能为空且必须是有效的HTTP(S)地址")
+            raise ConfigurationException(
+                "热榜URL不能为空且必须是有效的HTTP(S)地址",
+                context={"hot_list_url": self.hot_list_url},
+                suggestion="检查配置文件中的URLs设置"
+            )
         
         if not self.video_url or not self.video_url.startswith('http'):
-            raise ValueError("视频URL不能为空且必须是有效的HTTP(S)地址")
+            raise ConfigurationException(
+                "视频URL不能为空且必须是有效的HTTP(S)地址",
+                context={"video_url": self.video_url},
+                suggestion="检查配置文件中的URLs设置"
+            )
+        
+        # 验证URL域名安全性
+        self._validate_url_security(self.hot_list_url, "热榜URL")
+        self._validate_url_security(self.video_url, "视频URL")
             
         # 验证请求配置
         if not self.user_agent:
-            raise ValueError("User-Agent不能为空")
+            raise ConfigurationException(
+                "User-Agent不能为空",
+                context={"user_agent": self.user_agent},
+                suggestion="在配置文件中设置有效的User-Agent"
+            )
+        
+        # 验证User-Agent安全性
+        if len(self.user_agent) < 10:
+            raise SecurityException(
+                "User-Agent过短，可能被识别为爬虫",
+                context={"user_agent_length": len(self.user_agent)},
+                suggestion="使用更真实的浏览器User-Agent"
+            )
             
-        if self.hot_list_timeout is None or self.hot_list_timeout <= 0 or self.video_detail_timeout is None or self.video_detail_timeout <= 0:
-            raise ValueError("超时时间必须大于0")
+        if self.hot_list_timeout is None or self.hot_list_timeout <= 0:
+            raise ValidationException(
+                "热榜请求超时时间必须大于0",
+                context={"hot_list_timeout": self.hot_list_timeout},
+                suggestion="设置合理的超时时间（建议10-60秒）"
+            )
+        
+        if self.video_detail_timeout is None or self.video_detail_timeout <= 0:
+            raise ValidationException(
+                "视频详情请求超时时间必须大于0",
+                context={"video_detail_timeout": self.video_detail_timeout},
+                suggestion="设置合理的超时时间（建议5-30秒）"
+            )
             
         # 验证重试配置
-        if self.hot_list_max_retries is None or self.hot_list_max_retries < 0 or self.video_detail_max_retries is None or self.video_detail_max_retries < 0:
-            raise ValueError("重试次数不能为负数")
+        if self.hot_list_max_retries is None or self.hot_list_max_retries < 0:
+            raise ValidationException(
+                "热榜请求重试次数不能为负数",
+                context={"hot_list_max_retries": self.hot_list_max_retries},
+                suggestion="设置合理的重试次数（建议0-5次）"
+            )
+        
+        if self.video_detail_max_retries is None or self.video_detail_max_retries < 0:
+            raise ValidationException(
+                "视频详情重试次数不能为负数",
+                context={"video_detail_max_retries": self.video_detail_max_retries},
+                suggestion="设置合理的重试次数（建议0-3次）"
+            )
             
-        if self.hot_list_delay is None or self.hot_list_delay < 0 or self.video_detail_delay is None or self.video_detail_delay < 0:
-            raise ValueError("重试延迟不能为负数")
+        if self.hot_list_delay is None or self.hot_list_delay < 0:
+            raise ValidationException(
+                "热榜请求重试延迟不能为负数",
+                context={"hot_list_delay": self.hot_list_delay},
+                suggestion="设置合理的延迟时间（建议1-10秒）"
+            )
+        
+        if self.video_detail_delay is None or self.video_detail_delay < 0:
+            raise ValidationException(
+                "视频详情重试延迟不能为负数",
+                context={"video_detail_delay": self.video_detail_delay},
+                suggestion="设置合理的延迟时间（建议1-5秒）"
+            )
             
         # 验证爬虫配置
         if self.max_items is None or self.max_items <= 0:
-            raise ValueError("最大项目数必须大于0")
+            raise ValidationException(
+                "最大项目数必须大于0",
+                context={"max_items": self.max_items},
+                suggestion="设置合理的项目数（建议1-100）"
+            )
+        
+        if self.max_items > 1000:
+            raise ValidationException(
+                "最大项目数不能超过1000",
+                context={"max_items": self.max_items},
+                suggestion="降低最大项目数以避免被限流"
+            )
             
         if self.request_interval is None or self.request_interval < 0:
-            raise ValueError("请求间隔不能为负数")
+            raise ValidationException(
+                "请求间隔不能为负数",
+                context={"request_interval": self.request_interval},
+                suggestion="设置合理的请求间隔（建议1-5秒）"
+            )
+        
+        # 安全检查：请求间隔过短警告
+        if self.request_interval < 0.5:
+            raise SecurityException(
+                "请求间隔过短，可能被反爬虫机制检测",
+                context={"request_interval": self.request_interval},
+                suggestion="增加请求间隔到至少0.5秒"
+            )
             
         # 验证输出配置
         if self.output_indent is None or self.output_indent < 0:
-            raise ValueError("输出缩进不能为负数")
+            raise ValidationException(
+                "输出缩进不能为负数",
+                context={"output_indent": self.output_indent},
+                suggestion="设置合理的缩进值（建议0-8）"
+            )
             
         # 验证高级配置
-        if self.rate_limit_requests is None or self.rate_limit_requests <= 0 or self.rate_limit_period is None or self.rate_limit_period <= 0:
-            raise ValueError("限流配置必须大于0")
+        if self.rate_limit_requests is None or self.rate_limit_requests <= 0:
+            raise ValidationException(
+                "限流请求数必须大于0",
+                context={"rate_limit_requests": self.rate_limit_requests},
+                suggestion="设置合理的限流请求数（建议5-50）"
+            )
+        
+        if self.rate_limit_period is None or self.rate_limit_period <= 0:
+            raise ValidationException(
+                "限流时间窗口必须大于0",
+                context={"rate_limit_period": self.rate_limit_period},
+                suggestion="设置合理的时间窗口（建议10-300秒）"
+            )
             
         if self.max_concurrent_workers is None or self.max_concurrent_workers <= 0:
-            raise ValueError("并发工作线程数必须大于0")
+            raise ValidationException(
+                "并发工作线程数必须大于0",
+                context={"max_concurrent_workers": self.max_concurrent_workers},
+                suggestion="设置合理的线程数（建议1-10）"
+            )
+        
+        if self.max_concurrent_workers > 20:
+            raise SecurityException(
+                "并发线程数过多，可能被反爬虫机制检测",
+                context={"max_concurrent_workers": self.max_concurrent_workers},
+                suggestion="减少并发线程数到20以下"
+            )
+        
+        # 验证Cookie安全性（仅在提供真实Cookie时验证，跳过示例文本）
+        if (self.cookie and len(self.cookie.strip()) > 0 and 
+            not self.cookie.startswith('请在此处') and
+            not 'example' in self.cookie.lower() and
+            not '示例' in self.cookie):
+            self._validate_cookie_security()
+    
+    def _validate_url_security(self, url: str, url_name: str) -> None:
+        """
+        验证URL的安全性
+        
+        @param {str} url - 待验证的URL
+        @param {str} url_name - URL名称（用于错误消息）
+        @raises {SecurityException} 当URL不安全时抛出
+        """
+        from urllib.parse import urlparse
+        
+        try:
+            parsed = urlparse(url)
+            domain = parsed.netloc.lower()
+            
+            # 检查是否是可信域名
+            trusted_domains = ['douyin.com', 'snssdk.com', 'bytedance.com']
+            is_trusted = False
+            
+            for trusted_domain in trusted_domains:
+                if domain == trusted_domain or domain.endswith('.' + trusted_domain):
+                    is_trusted = True
+                    break
+            
+            if not is_trusted:
+                raise SecurityException(
+                    f"{url_name}域名不在可信列表中",
+                    context={"url": url, "domain": domain, "trusted_domains": trusted_domains},
+                    suggestion="确认URL是否为官方抖音域名"
+                )
+                
+        except Exception as e:
+            if not isinstance(e, SecurityException):
+                raise ConfigurationException(
+                    f"{url_name}格式无效",
+                    context={"url": url, "error": str(e)},
+                    suggestion="检查URL格式是否正确"
+                )
+            else:
+                raise
+    
+    def _validate_cookie_security(self) -> None:
+        """
+        验证Cookie的安全性
+        
+        @raises {SecurityException} 当Cookie不安全时抛出
+        """
+        # 导入SecurityValidator（从新的位置）
+        try:
+            from ..utils.security import SecurityValidator
+            
+            result = SecurityValidator.validate_cookie(self.cookie)
+            
+            if not result['is_valid']:
+                raise SecurityException(
+                    f"Cookie验证失败: {result['error']}",
+                    context={"cookie_length": len(self.cookie)},
+                    suggestion="更新有效的Cookie或检查Cookie格式"
+                )
+            
+            # 检查警告
+            if result['warning']:
+                import warnings
+                for warning in result['warning']:
+                    warnings.warn(f"Cookie安全警告: {warning}", UserWarning)
+                            
+        except ImportError:
+            # 如果无法导入SecurityValidator，进行基本验证
+            if len(self.cookie) < 50:
+                raise SecurityException(
+                    "Cookie长度过短，可能无效",
+                    context={"cookie_length": len(self.cookie)},
+                    suggestion="确认Cookie是否完整"
+                )
 
 
 class ConfigManager:
@@ -284,7 +492,7 @@ class ConfigManager:
                 
                 # 请求配置
                 user_agent=config_data["request"]["headers"]["User-Agent"],
-                cookie=self._env_config.get('DOUYIN_COOKIE', ''),
+                cookie=self._env_config.get('DOUYIN_COOKIE', '').strip(),
                 hot_list_timeout=config_data["request"]["timeouts"]["hot_list"],
                 video_detail_timeout=config_data["request"]["timeouts"]["video_detail"],
                 
@@ -301,6 +509,22 @@ class ConfigManager:
                 enable_cache=config_data["crawler"]["enable_cache"],
                 cache_duration=config_data["crawler"]["cache_duration"],
                 concurrent_requests=config_data["crawler"]["concurrent_requests"],
+                
+                # 浏览器配置
+                browser_headless=self._env_config.get('BROWSER_HEADLESS', config_data.get("browser", {}).get("headless", False)),
+                browser_disable_dev_shm_usage=config_data.get("browser", {}).get("disable_dev_shm_usage", True),
+                browser_no_sandbox=config_data.get("browser", {}).get("no_sandbox", False),
+                
+                # 视频下载配置
+                video_download_enabled=self._env_config.get('VIDEO_DOWNLOAD_ENABLED', config_data.get("video_download", {}).get("enabled", False)),
+                video_download_dir=self._env_config.get('VIDEO_DOWNLOAD_DIR', config_data.get("video_download", {}).get("download_dir", "downloads")),
+                video_download_max_file_size=config_data.get("video_download", {}).get("max_file_size", 209715200),
+                video_download_max_concurrent=config_data.get("video_download", {}).get("max_concurrent", 3),
+                video_download_timeout=config_data.get("video_download", {}).get("timeout", 30),
+                video_download_chunk_size=config_data.get("video_download", {}).get("chunk_size", 8192),
+                video_download_max_retries=config_data.get("video_download", {}).get("max_retries", 3),
+                video_download_retry_delay=config_data.get("video_download", {}).get("retry_delay", 1.0),
+                video_download_auto_download=config_data.get("video_download", {}).get("auto_download", False),
                 
                 # 输出配置
                 output_format=config_data["output"]["format"],

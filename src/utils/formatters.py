@@ -316,9 +316,11 @@ def convert_to_markdown(hot_list_response) -> str:
             for i, article in enumerate(item.articles, 1):
                 lines.append(f"#### {i}. {article.title}")
                 lines.append("")
-                lines.append(f"- **链接**: [{article.short_url}]({article.short_url})")
                 if article.video_url:
+                    lines.append(f"- **链接**: [{article.video_url}]({article.video_url})")
                     lines.append(f"- **视频**: [点击播放]({article.video_url})")
+                else:
+                    lines.append(f"- **链接**: [{article.short_url}]({article.short_url})")
                 lines.append("")
         else:
             lines.append("### 相关视频")
@@ -346,7 +348,7 @@ def convert_to_csv(hot_list_response) -> str:
     """
     lines = []
     # CSV头部
-    lines.append("排名,标题,热度,浏览量,链接")
+    lines.append("排名,标题,热度,浏览量,链接,视频下载链接")
     
     for item in hot_list_response.items:
         # 处理CSV中的特殊字符（逗号、引号等）
@@ -354,7 +356,12 @@ def convert_to_csv(hot_list_response) -> str:
         if ',' in title or '"' in title:
             title = f'"{title}"'
         
-        lines.append(f"{item.position},{title},{item.popularity},{item.views},{item.url}")
+        # 获取视频下载链接
+        video_download_url = ""
+        if item.articles and len(item.articles) > 0:
+            video_download_url = item.articles[0].video_url or ""
+        
+        lines.append(f"{item.position},{title},{item.popularity},{item.views},{item.url},{video_download_url}")
     
     return "\n".join(lines)
 

@@ -40,6 +40,7 @@
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional
 from datetime import datetime
+from .exceptions import DataValidationException, ParameterValidationException
 
 
 @dataclass
@@ -75,22 +76,93 @@ class VideoArticle:
     video_url: str                # 视频播放URL
     created_at: Optional[datetime] = None  # 创建时间
     
+    def __post_init__(self):
+        """
+        数据验证和初始化后处理
+        
+        在对象创建后自动调用，进行数据验证和清理。
+        
+        @raises {DataValidationException} 当数据验证失败时抛出
+        """
+        # 验证标题
+        if not self.title or not isinstance(self.title, str):
+            raise DataValidationException(
+                "视频标题不能为空且必须是字符串",
+                context={"title": self.title}
+            )
+        
+        if len(self.title.strip()) == 0:
+            raise DataValidationException(
+                "视频标题不能为空白字符",
+                context={"title": self.title}
+            )
+        
+        if len(self.title) > 500:
+            raise DataValidationException(
+                "视频标题长度不能超过500字符",
+                context={"title_length": len(self.title)}
+            )
+        
+        # 清理标题
+        self.title = self.title.strip()
+        
+        # 验证URL
+        if not self.short_url or not isinstance(self.short_url, str):
+            raise DataValidationException(
+                "短链接URL不能为空且必须是字符串",
+                context={"short_url": self.short_url}
+            )
+        
+        if not self._validate_url(self.short_url):
+            raise DataValidationException(
+                "短链接URL格式无效",
+                context={"short_url": self.short_url}
+            )
+        
+        # 验证视频URL（可选）
+        if self.video_url and not self._validate_url(self.video_url):
+            raise DataValidationException(
+                "视频播放URL格式无效",
+                context={"video_url": self.video_url}
+            )
+        
+        # 设置创建时间
+        if self.created_at is None:
+            self.created_at = datetime.now()
+    
+    def _validate_url(self, url: str) -> bool:
+        """
+        验证URL格式
+        
+        @param {str} url - 待验证的URL
+        @returns {bool} 是否有效
+        """
+        if not url:
+            return False
+        
+        from urllib.parse import urlparse
+        try:
+            result = urlparse(url)
+            return all([result.scheme, result.netloc])
+        except Exception:
+            return False
+    
     def to_dict(self) -> Dict[str, str]:
         """
         转换为字典格式
         
         将VideoArticle对象转换为字典格式，便于JSON序列化。
+        移除了 article_short_url 字段，简化数据结构。
         
         @returns {Dict[str, str]} 包含所有字段的字典对象
         
         @example
             article = VideoArticle(title="测试", short_url="http://test.com")
             article_dict = article.to_dict()
-            # 结果: {"article_title": "测试", "article_short_url": "http://test.com", ...}
+            # 结果: {"article_title": "测试", "article_video_url": "http://video.com", ...}
         """
         return {
             "article_title": self.title,
-            "article_short_url": self.short_url,
             "article_video_url": self.video_url,
             "created_at": self.created_at.isoformat() if self.created_at else None
         }
@@ -133,6 +205,110 @@ class HotListItem:
     views: int                    # 浏览量
     articles: List[VideoArticle] = field(default_factory=list)  # 关联的视频文章列表
     created_at: Optional[datetime] = None  # 创建时间
+    
+    def __post_init__(self):
+        """
+        数据验证和初始化后处理
+        
+        @raises {DataValidationException} 当数据验证失败时抛出
+        """
+        # 验证排名位置
+        if not isinstance(self.position, int) or self.position <= 0:
+            raise DataValidationException(
+                "排名位置必须是大于0的整数",
+                context={"position": self.position}
+            )
+        
+        if self.position > 1000:  # 合理的上限
+            raise DataValidationException(
+                "排名位置不能超过1000",
+                context={"position": self.position}
+            )
+        
+        # 验证标题
+        if not self.title or not isinstance(self.title, str):
+            raise DataValidationException(
+                "热榜标题不能为空且必须是字符串",
+                context={"title": self.title}
+            )
+        
+        if len(self.title.strip()) == 0:
+            raise DataValidationException(
+                "热榜标题不能为空白字符",
+                context={"title": self.title}
+            )
+        
+        if len(self.title) > 200:
+            raise DataValidationException(
+                "热榜标题长度不能超过200字符",
+                context={"title_length": len(self.title)}
+            )
+        
+        # 清理标题
+        self.title = self.title.strip()
+        
+        # 验证URL
+        if not self.url or not isinstance(self.url, str):
+            raise DataValidationException(
+                "热榜URL不能为空且必须是字符串",
+                context={"url": self.url}
+            )
+        
+        if not self._validate_url(self.url):
+            raise DataValidationException(
+                "热榜URL格式无效",
+                context={"url": self.url}
+            )
+        
+        # 验证热度值
+        if not isinstance(self.popularity, int) or self.popularity < 0:
+            raise DataValidationException(
+                "热度值必须是非负整数",
+                context={"popularity": self.popularity}
+            )
+        
+        # 验证浏览量
+        if not isinstance(self.views, int) or self.views < 0:
+            raise DataValidationException(
+                "浏览量必须是非负整数",
+                context={"views": self.views}
+            )
+        
+        # 验证文章列表
+        if not isinstance(self.articles, list):
+            raise DataValidationException(
+                "文章列表必须是列表类型",
+                context={"articles_type": type(self.articles)}
+            )
+        
+        # 验证文章列表中的每个项目
+        for i, article in enumerate(self.articles):
+            if not isinstance(article, VideoArticle):
+                raise DataValidationException(
+                    f"文章列表第{i+1}项必须是VideoArticle类型",
+                    context={"article_index": i, "article_type": type(article)}
+                )
+        
+        # 设置创建时间
+        if self.created_at is None:
+            self.created_at = datetime.now()
+    
+    def _validate_url(self, url: str) -> bool:
+        """
+        验证URL格式
+        
+        @param {str} url - 待验证的URL
+        @returns {bool} 是否有效
+        """
+        if not url:
+            return False
+        
+        from urllib.parse import urlparse
+        try:
+            result = urlparse(url)
+            return all([result.scheme, result.netloc])
+        except Exception:
+            return False
     
     def to_dict(self) -> Dict[str, Any]:
         """
@@ -190,6 +366,7 @@ class HotListResponse:
         转换为字典格式
         
         将HotListResponse对象转换为字典格式，包含所有热榜项目信息。
+        total_count 自动设置为实际项目数量。
         
         @returns {Dict[str, Any]} 包含所有字段的字典对象
         
@@ -200,7 +377,7 @@ class HotListResponse:
         """
         return {
             "list": [item.to_dict() for item in self.items],
-            "total_count": self.total_count,
+            "total_count": len(self.items),  # 自动计算实际数量
             "fetch_time": self.fetch_time.isoformat() if self.fetch_time else None
         }
 

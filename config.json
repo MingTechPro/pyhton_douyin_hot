@@ -26,6 +26,22 @@
     "cache_duration": 300,
     "concurrent_requests": false
   },
+  "browser": {
+    "headless": false,
+    "disable_dev_shm_usage": true,
+    "no_sandbox": false
+  },
+  "video_download": {
+    "enabled": false,
+    "download_dir": "douyin_video",
+    "max_file_size": 209715200,
+    "max_concurrent": 3,
+    "timeout": 30,
+    "chunk_size": 8192,
+    "max_retries": 3,
+    "retry_delay": 1.0,
+    "auto_download": false
+  },
   "url_encoding": {
     "enabled": true,
     "method": "url_encode",

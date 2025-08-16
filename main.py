@@ -62,14 +62,17 @@ def parse_arguments() -> argparse.Namespace:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 使用示例:
-  python main_optimized.py                    # 使用默认配置
-  python main_optimized.py -n 5               # 获取前5条数据
-  python main_optimized.py -i 2               # 请求间隔2秒
-  python main_optimized.py -n 10 -i 1.5      # 获取10条，间隔1.5秒
-  python main_optimized.py --no-skip-top     # 不跳过热榜置顶
-  python main_optimized.py --debug            # 开启调试模式
-  python main_optimized.py --performance      # 显示详细性能信息
-  python main_optimized.py -h                 # 显示帮助信息
+  python main_optimized.py                         # 使用默认配置
+  python main_optimized.py -n 5                    # 获取前5条数据
+  python main_optimized.py -i 2                    # 请求间隔2秒
+  python main_optimized.py -n 10 -i 1.5           # 获取10条，间隔1.5秒
+  python main_optimized.py --no-skip-top          # 不跳过热榜置顶
+  python main_optimized.py --headless             # 浏览器后台运行
+  python main_optimized.py --download-videos      # 启用视频下载
+  python main_optimized.py --download-dir ./vids  # 指定下载目录
+  python main_optimized.py --debug                # 开启调试模式
+  python main_optimized.py --performance          # 显示详细性能信息
+  python main_optimized.py -h                     # 显示帮助信息
         """
     )
     
@@ -90,6 +93,24 @@ def parse_arguments() -> argparse.Namespace:
         '--no-skip-top',
         action='store_true',
         help='不跳过热榜置顶项目 (默认: 跳过)'
+    )
+    
+    parser.add_argument(
+        '--headless',
+        action='store_true',
+        help='在后台模式运行浏览器 (不显示浏览器窗口)'
+    )
+    
+    parser.add_argument(
+        '--download-videos',
+        action='store_true',
+        help='启用视频下载功能 (下载找到的视频)'
+    )
+    
+    parser.add_argument(
+        '--download-dir',
+        type=str,
+        help='指定视频下载目录 (默认: downloads)'
     )
     
     # 输出参数组
@@ -164,6 +185,17 @@ def apply_command_line_args(config_manager: ConfigManager, args: argparse.Namesp
     # 更新是否跳过置顶配置
     if args.no_skip_top:
         config_updates['skip_top_item'] = False
+    
+    # 更新浏览器无头模式配置
+    if args.headless:
+        config_updates['browser_headless'] = True
+    
+    # 更新视频下载配置
+    if args.download_videos:
+        config_updates['video_download_enabled'] = True
+    
+    if args.download_dir is not None:
+        config_updates['video_download_dir'] = args.download_dir
     
     # 批量更新配置
     if config_updates:
@@ -325,11 +357,13 @@ def main():
         # 试运行模式检查
         if args.dry_run:
             logger.info("=== 试运行模式 ===")
-            logger.info(f"配置信息 - 最大项目数: {config.max_items}, 请求间隔: {config.request_interval}秒")
-            logger.info(f"跳过置顶: {config.skip_top_item}, 输出格式: {args.format}")
+            logger.info(f"📊 基本配置 - 最大项目数: {config.max_items}, 请求间隔: {config.request_interval}秒")
+            logger.info(f"🎯 爬虫设置 - 跳过置顶: {config.skip_top_item}, 输出格式: {args.format}")
+            logger.info(f"🖥️  浏览器配置 - 无头模式: {config.browser_headless}")
+            logger.info(f"📥 视频下载 - 启用: {config.video_download_enabled}, 目录: {config.video_download_dir}")
             if args.output:
-                logger.info(f"输出文件: {args.output}")
-            logger.info("试运行完成，退出程序")
+                logger.info(f"📁 输出文件: {args.output}")
+            logger.info("✅ 试运行完成，退出程序")
             return
         
         # 开始执行爬虫

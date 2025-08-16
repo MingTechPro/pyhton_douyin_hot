@@ -493,6 +493,7 @@ class CacheManager:
                     # 尝试恢复对象
                     try:
                         restored_value = self._restore_object(item['value'])
+                        # 只有恢复成功且不为None才添加到缓存
                         if restored_value is not None:
                             self._cache[key] = {
                                 'value': restored_value,
@@ -510,7 +511,7 @@ class CacheManager:
         """从字典恢复对象"""
         try:
             # 检查是否是HotListResponse数据
-            if 'list' in data and 'total_count' in data and 'fetch_time' in data:
+            if isinstance(data, dict) and 'list' in data and 'total_count' in data and 'fetch_time' in data:
                 from ..core.models import HotListResponse, HotListItem, VideoArticle
                 from datetime import datetime
                 
@@ -518,7 +519,7 @@ class CacheManager:
                 def restore_article(article_data):
                     return VideoArticle(
                         title=article_data.get('article_title', ''),
-                        short_url=article_data.get('article_short_url', ''),
+                        short_url=article_data.get('article_short_url', ''),  # 兼容旧缓存
                         video_url=article_data.get('article_video_url', ''),
                         created_at=datetime.fromisoformat(article_data['created_at']) if article_data.get('created_at') else None
                     )
@@ -537,18 +538,23 @@ class CacheManager:
                     )
                 
                 # 恢复HotListResponse对象
-                items = [restore_hot_item(item_data) for item_data in data.get('list', [])]
-                fetch_time = datetime.fromisoformat(data['fetch_time']) if data.get('fetch_time') else None
-                
-                return HotListResponse(
-                    items=items,
-                    total_count=data.get('total_count', 0),
-                    fetch_time=fetch_time
-                )
+                try:
+                    items = [restore_hot_item(item_data) for item_data in data.get('list', [])]
+                    fetch_time = datetime.fromisoformat(data['fetch_time']) if data.get('fetch_time') else None
+                    
+                    response = HotListResponse(
+                        items=items,
+                        total_count=data.get('total_count', 0),
+                        fetch_time=fetch_time
+                    )
+                    return response
+                except Exception:
+                    # 如果恢复失败，返回None而不是原数据
+                    return None
             
             return data
         except Exception:
-            return data
+            return None
 
 
 class RateLimiter:

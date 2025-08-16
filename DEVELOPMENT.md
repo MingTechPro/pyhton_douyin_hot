@@ -1,604 +1,534 @@
-# 抖音热点爬虫项目 - 开发文档
+# 开发文档 (Development Guide)
 
-本文档包含抖音热点爬虫项目的详细开发信息，包括API文档、开发指南、测试指南等。
+[![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Code Style](https://img.shields.io/badge/code%20style-PEP8-000000.svg)](https://www.python.org/dev/peps/pep-0008/)
+[![Documentation](https://img.shields.io/badge/docs-latest-brightgreen.svg)]()
+
+抖音热榜爬虫项目的详细开发指南，包含架构设计、代码规范、调试技巧等内容。
+
+[📚 项目文档](./README.md) &nbsp;&nbsp;&nbsp;&nbsp; [🔧 环境配置](#-环境配置) &nbsp;&nbsp;&nbsp;&nbsp; [🚀 快速调试](#-快速调试)
 
 ## 📋 目录
 
-- [📦 安装指南](#-安装指南)
-- [📚 API文档](#-api文档)
-- [🛠️ 开发指南](#-开发指南)
-- [🧪 测试指南](#-测试指南)
-- [📝 日志管理](#-日志管理)
-- [🤝 贡献指南](#-贡献指南)
+- [🏗️ 架构设计](#️-架构设计)
+- [🔧 环境配置](#-环境配置)
+- [💻 开发指南](#-开发指南)
+- [🧪 测试调试](#-测试调试)
+- [📊 性能优化](#-性能优化)
+- [🔒 安全考虑](#-安全考虑)
 
-## 📦 安装指南
+## 🏗️ 架构设计
 
-### 完整安装步骤
+### 📦 模块化架构
 
+项目采用分层架构设计，清晰分离关注点：
+
+```
+┌─────────────────────────────────────────┐
+│              应用层 (main.py)            │
+├─────────────────────────────────────────┤
+│              配置层 (config/)            │
+├─────────────────────────────────────────┤
+│              爬虫层 (spider/)            │
+├─────────────────────────────────────────┤
+│              核心层 (core/)              │
+├─────────────────────────────────────────┤
+│              工具层 (utils/)             │
+└─────────────────────────────────────────┘
+```
+
+### 🔄 数据流架构
+
+```mermaid
+graph TD
+    A[命令行输入] --> B[配置管理器]
+    B --> C[爬虫引擎]
+    C --> D[浏览器控制器]
+    C --> E[缓存管理器]
+    C --> F[数据处理器]
+    F --> G[格式化器]
+    F --> H[视频下载器]
+    G --> I[文件输出]
+    H --> J[视频文件]
+```
+
+### 🎯 核心组件
+
+#### 1. 配置管理系统
+- **ConfigManager**: 统一配置管理
+- **多层级配置**: 命令行 > environment.py > config.json
+- **类型安全**: 使用dataclass进行配置验证
+
+#### 2. 爬虫引擎
+- **BaseSpider**: 基础爬虫抽象类
+- **DouyinSpider**: 抖音专用爬虫实现
+- **浏览器管理**: 支持有头/无头模式
+
+#### 3. 数据处理
+- **数据模型**: 类型安全的dataclass模型
+- **格式化器**: 支持JSON/CSV/TXT/Markdown格式
+- **缓存系统**: 内存+文件双重缓存
+
+#### 4. 视频下载器
+- **并发下载**: 多线程下载管理
+- **智能检查**: 避免重复下载
+- **防盗链**: 智能请求头设置
+
+## 🔧 环境配置
+
+### 开发环境要求
+
+| 组件 | 版本要求 | 说明 |
+|------|----------|------|
+| **Python** | 3.8+ | 支持dataclass和类型注解 |
+| **Chrome** | 90+ | 浏览器自动化 |
+| **Memory** | 4GB+ | 推荐配置 |
+| **Storage** | 2GB+ | 代码+数据+日志 |
+
+### 📚 核心依赖
+
+```toml
+[dependencies]
+DrissionPage = "^4.1.1.2"  # 浏览器自动化
+requests = "^2.31.0"       # HTTP请求
+dataclasses = "*"          # 数据类（Python 3.8+内置）
+pathlib = "*"              # 路径处理（Python 3.8+内置）
+```
+
+### 🛠️ IDE配置
+
+#### VS Code 推荐配置
+```json
+{
+    "python.defaultInterpreterPath": "./venv/bin/python",
+    "python.linting.enabled": true,
+    "python.linting.pylintEnabled": true,
+    "python.formatting.provider": "black",
+    "python.sortImports.args": ["--profile", "black"],
+    "files.associations": {
+        "*.py": "python"
+    }
+}
+```
+
+#### PyCharm 配置
+1. **代码风格**: Settings → Editor → Code Style → Python → 设置为PEP8
+2. **类型检查**: Settings → Editor → Inspections → Python → Type checking
+3. **文档字符串**: 启用docstring检查
+
+## 💻 开发指南
+
+### 🔨 代码规范
+
+#### 命名约定
+```python
+# 类名: PascalCase
+class VideoDownloader:
+    pass
+
+# 函数名: snake_case
+def download_video():
+    pass
+
+# 常量: UPPER_CASE
+MAX_RETRY_COUNT = 3
+
+# 变量: snake_case
+download_result = None
+```
+
+#### 文档字符串规范
+```python
+def download_video(self, url: str, filename: Optional[str] = None) -> DownloadResult:
+    """
+    下载单个视频文件
+    
+    从指定URL下载视频到本地，支持进度回调和错误处理。
+    
+    @param {str} url - 视频URL
+    @param {Optional[str]} filename - 自定义文件名
+    @returns {DownloadResult} 下载结果对象
+    @raises {NetworkException} 当网络请求失败时
+    
+    @example
+        result = downloader.download_video(
+            url="https://example.com/video.mp4",
+            filename="my_video.mp4"
+        )
+        if result.success:
+            print(f"下载成功: {result.file_path}")
+    """
+    pass
+```
+
+#### 类型注解
+```python
+from typing import Optional, List, Dict, Any
+from dataclasses import dataclass
+
+@dataclass
+class HotListItem:
+    position: int
+    title: str
+    url: str
+    popularity: int
+    views: int
+    articles: List['VideoArticle'] = field(default_factory=list)
+    created_at: Optional[datetime] = None
+```
+
+### 🔄 Git工作流
+
+#### 分支策略
 ```bash
-# 克隆仓库
-git clone https://github.com/MingTechPro/pyhton_douyin_hot.git
-cd pyhton_douyin_hot
-
-# 创建虚拟环境（推荐）
-python -m venv venv
-source venv/bin/activate  # Linux/macOS
-# 或
-venv\Scripts\activate     # Windows
-
-# 安装项目
-pip install -e .
-
-# 安装开发依赖（可选）
-pip install -e ".[dev,test]"
+main        # 稳定版本
+├── develop # 开发分支
+├── feature/video-download  # 功能分支
+├── feature/cache-system    # 功能分支
+└── hotfix/cache-bug       # 修复分支
 ```
 
-### 依赖说明
-
-#### 核心依赖
-- **DrissionPage**: 网页自动化工具
-- **requests**: HTTP 请求库
-- **pandas**: 数据处理库
-- **numpy**: 数值计算库
-- **aiohttp**: 异步 HTTP 客户端
-- **redis**: 缓存数据库
-- **pydantic**: 数据验证库
-- **psutil**: 系统监控库
-- **asyncio-throttle**: 异步限流库
-- **pyyaml**: YAML配置文件支持
-- **python-dotenv**: 环境变量管理
-- **colorlog**: 彩色日志输出
-
-#### 可选依赖
-- **测试工具**: pytest, pytest-asyncio, pytest-cov
-- **代码质量**: black, flake8, mypy
-- **文档生成**: sphinx, sphinx-rtd-theme
-
-### 配置项详解
-
-#### URLs 配置
-- `hot_list`: 抖音热榜页面 URL
-- `video`: 视频详情页面 URL
-
-#### Request 配置
-- `headers`: HTTP 请求头配置
-- `timeouts`: 请求超时时间设置
-- `retry`: 重试机制配置
-
-#### Crawler 配置
-- `max_items`: 最大获取项目数
-- `request_interval`: 请求间隔时间
-- `skip_top_item`: 是否跳过热榜置顶
-- `enable_cache`: 是否启用缓存
-- `cache_duration`: 缓存持续时间
-
-#### Output 配置
-- `format`: 输出格式 (json/csv/txt/md)
-- `indent`: JSON 格式化缩进
-- `ensure_ascii`: 是否确保 ASCII 编码
-- `default_path`: 默认输出路径
-
-#### Logging 配置
-- `level`: 日志级别
-- `console_level`: 控制台日志级别
-- `file_level`: 文件日志级别
-- `log_file`: 日志文件路径
-
-## 📚 API 文档
-
-### 核心类
-
-#### DouyinSpider
-
-主要的爬虫类，负责数据爬取和处理。
-
-```python
-from src.spider.douyin_spider import DouyinSpider
-
-# 创建爬虫实例
-spider = DouyinSpider()
-
-# 获取热榜数据
-hot_data = await spider.get_hot_list(max_items=10)
+#### 提交规范
+```bash
+# 功能: feat: 添加视频下载功能
+# 修复: fix: 修复缓存系统bug
+# 文档: docs: 更新README文档
+# 重构: refactor: 重构配置管理模块
+# 测试: test: 添加单元测试
+# 样式: style: 修复代码格式
 ```
 
-**方法说明：**
+### 📝 添加新功能
 
-- `get_hot_list(max_items: int = 10)`: 获取热榜数据
-- `get_video_detail(video_id: str)`: 获取视频详情
-- `process_data(raw_data: dict)`: 处理原始数据
+#### 1. 创建新模块
+```bash
+# 在相应目录创建新文件
+touch src/utils/new_feature.py
 
-#### ConfigManager
-
-配置管理类，负责加载和管理配置。
-
-```python
-from src.config.config_manager import ConfigManager
-
-# 创建配置管理器
-config = ConfigManager()
-
-# 获取配置项
-max_items = config.get('crawler.max_items')
+# 添加__init__.py导入
+echo "from .new_feature import NewFeature" >> src/utils/__init__.py
 ```
 
-**方法说明：**
-
-- `get(key: str, default=None)`: 获取配置项
-- `set(key: str, value)`: 设置配置项
-- `load_config()`: 加载配置文件
-- `save_config()`: 保存配置文件
-
-#### LogManager
-
-日志管理类，提供统一的日志记录功能。
-
+#### 2. 实现功能类
 ```python
-from src.utils.logger import LogManager
+"""
+新功能模块
 
-# 创建日志管理器
-logger = LogManager.get_logger(__name__)
+@author: Your Name
+@version: 1.0.0
+@date: 2025-08-17
+"""
 
-# 记录日志
-logger.info("开始爬取数据")
-logger.error("发生错误", exc_info=True)
+from typing import Optional
+from ..core.exceptions import ValidationException
+
+class NewFeature:
+    """
+    新功能实现类
+    
+    提供XXX功能，支持YYY特性。
+    """
+    
+    def __init__(self, config: 'AppConfig', logger: Optional[logging.Logger] = None):
+        self.config = config
+        self.logger = logger or logging.getLogger(__name__)
+    
+    def process(self, data: Any) -> Any:
+        """处理数据的主要方法"""
+        try:
+            # 实现逻辑
+            return result
+        except Exception as e:
+            self.logger.error(f"处理失败: {str(e)}")
+            raise
 ```
 
-### 数据模型
-
-#### HotListResponse
-
-热榜数据响应模型。
-
+#### 3. 更新配置
 ```python
-from src.core.models import HotListResponse
+# config.json 添加配置项
+{
+    "new_feature": {
+        "enabled": false,
+        "option1": "value1"
+    }
+}
 
-# 创建响应对象
-response = HotListResponse(
-    success=True,
-    data=hot_data,
-    timestamp=datetime.now(),
-    total_count=len(hot_data)
-)
+# config_manager.py 添加字段
+@dataclass
+class AppConfig:
+    # 新功能配置
+    new_feature_enabled: bool = False
+    new_feature_option1: str = "default_value"
 ```
 
-#### CrawlResult
+## 🧪 测试调试
 
-爬取结果模型。
+### 🚀 快速调试
 
-```python
-from src.core.models import CrawlResult
+#### 基础测试命令
+```bash
+# 干运行模式 - 验证配置和逻辑
+python main.py --headless -n 1 --dry-run
 
-# 创建结果对象
-result = CrawlResult(
-    items=hot_items,
-    performance_stats=stats,
-    errors=errors
-)
+# 调试模式 - 详细日志输出
+python main.py --headless -n 1 --debug
+
+# 性能模式 - 显示性能统计
+python main.py --headless -n 1 --performance
 ```
 
-### 工具类
+#### 功能专项测试
+```bash
+# 测试数据爬取
+python main.py --headless -n 3 --format json
 
-#### Formatters
+# 测试视频下载
+python main.py --headless -n 1 --download-videos
 
-数据格式化工具类。
-
-```python
-from src.utils.formatters import Formatters
-
-# 格式化数据为JSON
-json_data = Formatters.to_json(data)
-
-# 格式化数据为CSV
-csv_data = Formatters.to_csv(data)
-
-# 格式化数据为Markdown
-md_data = Formatters.to_markdown(data)
+# 测试格式输出
+python main.py --headless -n 1 --format csv -o test.csv
+python main.py --headless -n 1 --format markdown -o test.md
 ```
 
-#### Performance
+### 🔍 调试技巧
 
-性能监控工具类。
-
+#### 1. 日志调试
 ```python
-from src.utils.performance import Performance
+# 启用详细日志
+import logging
+logging.basicConfig(level=logging.DEBUG)
 
-# 开始性能监控
-perf = Performance()
-perf.start()
-
-# 执行操作
-# ...
-
-# 结束监控并获取统计信息
-stats = perf.end()
-print(f"执行时间: {stats['duration']}秒")
-print(f"内存使用: {stats['memory_usage']}MB")
+# 在代码中添加调试点
+self.logger.debug(f"处理数据: {data}")
+self.logger.info(f"当前状态: {status}")
 ```
 
-## 🛠️ 开发指南
+#### 2. 缓存调试
+```bash
+# 清除缓存重新运行
+Remove-Item "cache\cache.json" -Force
+python main.py --headless -n 1
 
-### 开发环境设置
+# 检查缓存内容
+cat cache/cache.json | python -m json.tool
+```
 
-1. **克隆项目并安装开发依赖**
-   ```bash
-   git clone https://github.com/MingTechPro/pyhton_douyin_hot.git
-   cd pyhton_douyin_hot
-   pip install -e ".[dev,test]"
-   ```
-
-2. **安装 pre-commit 钩子**
-   ```bash
-   pre-commit install
-   ```
-
-3. **运行测试**
-   ```bash
-   pytest
-   ```
-
-### 代码规范
-
-项目使用以下工具确保代码质量：
-
-- **Black**: 代码格式化
-- **Flake8**: 代码风格检查
-- **MyPy**: 类型检查
-- **Pre-commit**: Git 钩子
-
-### 添加新功能
-
-1. **创建功能分支**
-   ```bash
-   git checkout -b feature/new-feature
-   ```
-
-2. **编写代码和测试**
-   ```python
-   # 在 src/ 目录下添加新模块
-   # 在 tests/ 目录下添加对应测试
-   ```
-
-3. **运行测试和检查**
-   ```bash
-   pytest
-   black src/ tests/
-   flake8 src/ tests/
-   mypy src/
-   ```
-
-4. **提交代码**
-   ```bash
-   git add .
-   git commit -m "feat: add new feature"
-   ```
-
-### 模块开发指南
-
-#### 添加新的爬虫模块
-
-1. **继承基础爬虫类**
-   ```python
-   from src.spider.base_spider import BaseSpider
-   
-   class NewSpider(BaseSpider):
-       def __init__(self):
-           super().__init__()
-       
-       async def crawl(self):
-           # 实现爬取逻辑
-           pass
-   ```
-
-2. **实现必要的方法**
-   - `crawl()`: 主要爬取方法
-   - `parse_data()`: 数据解析方法
-   - `validate_data()`: 数据验证方法
-
-#### 添加新的格式化器
-
-1. **在 formatters.py 中添加新方法**
-   ```python
-   @staticmethod
-   def to_custom_format(data: List[Dict]) -> str:
-       # 实现自定义格式化逻辑
-       pass
-   ```
-
-2. **在配置文件中注册新格式**
-   ```json
-   {
-     "output": {
-       "formats": ["json", "csv", "custom"]
-     }
-   }
-   ```
-
-### 错误处理
-
-#### 自定义异常类
-
+#### 3. 浏览器调试
 ```python
+# 启用有头模式查看浏览器行为
+python main.py -n 1  # 不使用 --headless
+
+# 添加断点调试
+import pdb; pdb.set_trace()
+```
+
+### 📊 性能分析
+
+#### 内存分析
+```python
+import tracemalloc
+
+tracemalloc.start()
+# 运行代码
+current, peak = tracemalloc.get_traced_memory()
+print(f"当前内存: {current / 1024 / 1024:.1f} MB")
+print(f"峰值内存: {peak / 1024 / 1024:.1f} MB")
+```
+
+#### 时间分析
+```python
+import time
+from functools import wraps
+
+def timing_decorator(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        start = time.time()
+        result = func(*args, **kwargs)
+        end = time.time()
+        print(f"{func.__name__} 耗时: {end - start:.2f}秒")
+        return result
+    return wrapper
+```
+
+## 📊 性能优化
+
+### ⚡ 爬取性能
+
+#### 1. 请求优化
+```python
+# 合理设置请求间隔
+REQUEST_INTERVAL = 1.0  # 避免被限流
+
+# 使用连接池
+session = requests.Session()
+adapter = HTTPAdapter(pool_connections=10, pool_maxsize=20)
+session.mount('http://', adapter)
+```
+
+#### 2. 缓存策略
+```python
+# 设置合适的缓存时间
+CACHE_DURATION = 300  # 5分钟
+
+# 定期清理过期缓存
+cache_manager.cleanup_expired()
+```
+
+#### 3. 并发控制
+```python
+# 限制并发数量
+MAX_CONCURRENT = 3
+
+# 使用线程池
+with ThreadPoolExecutor(max_workers=MAX_CONCURRENT) as executor:
+    futures = [executor.submit(download_video, url) for url in urls]
+```
+
+### 🧠 内存优化
+
+#### 1. 大对象管理
+```python
+# 及时释放大对象
+del large_data
+gc.collect()
+
+# 使用生成器处理大数据
+def process_items():
+    for item in large_dataset:
+        yield process_item(item)
+```
+
+#### 2. 缓存大小控制
+```python
+# 限制缓存大小
+MAX_CACHE_SIZE = 100
+
+# 使用LRU策略
+from functools import lru_cache
+
+@lru_cache(maxsize=128)
+def expensive_function(param):
+    return result
+```
+
+## 🔒 安全考虑
+
+### 🛡️ 数据安全
+
+#### 1. 敏感信息处理
+```python
+# 不要在代码中硬编码敏感信息
+# ❌ 错误做法
+COOKIE = "session_id=abc123..."
+
+# ✅ 正确做法
+COOKIE = os.environ.get('DOUYIN_COOKIE', '')
+```
+
+#### 2. 输入验证
+```python
+def validate_url(url: str) -> bool:
+    """验证URL安全性"""
+    if not url.startswith(('http://', 'https://')):
+        return False
+    
+    # 检查域名白名单
+    allowed_domains = {'douyin.com', 'snssdk.com'}
+    parsed = urlparse(url)
+    return any(parsed.netloc.endswith(domain) for domain in allowed_domains)
+```
+
+#### 3. 文件安全
+```python
+def sanitize_filename(filename: str) -> str:
+    """清理文件名，防止路径遍历攻击"""
+    # 移除危险字符
+    filename = re.sub(r'[<>:"/\\|?*]', '_', filename)
+    # 防止路径遍历
+    filename = os.path.basename(filename)
+    return filename[:255]  # 限制长度
+```
+
+### 🔐 网络安全
+
+#### 1. 请求头安全
+```python
+# 设置合适的User-Agent
+headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) ...',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+    'Connection': 'keep-alive',
+}
+```
+
+#### 2. 代理安全
+```python
+# 使用代理时的安全配置
+proxies = {
+    'http': 'http://proxy:port',
+    'https': 'https://proxy:port'
+}
+
+# 验证代理
+response = requests.get('https://httpbin.org/ip', proxies=proxies, timeout=10)
+```
+
+### ⚠️ 错误处理
+
+#### 1. 异常分类
+```python
+# 自定义异常层次
 class SpiderException(Exception):
-    """爬虫基础异常类"""
+    """爬虫基础异常"""
     pass
 
 class NetworkException(SpiderException):
     """网络相关异常"""
     pass
 
-class DataParseException(SpiderException):
-    """数据解析异常"""
+class ValidationException(SpiderException):
+    """数据验证异常"""
     pass
 ```
 
-#### 异常处理最佳实践
-
+#### 2. 安全日志
 ```python
-try:
-    data = await spider.get_hot_list()
-except NetworkException as e:
-    logger.error(f"网络错误: {e}")
-    # 重试逻辑
-except DataParseException as e:
-    logger.error(f"数据解析错误: {e}")
-    # 降级处理
-except Exception as e:
-    logger.error(f"未知错误: {e}")
-    # 通用错误处理
+# 不要在日志中记录敏感信息
+# ❌ 错误做法
+logger.info(f"使用Cookie: {cookie}")
+
+# ✅ 正确做法
+logger.info(f"使用Cookie: {cookie[:10]}...")
 ```
 
-## 🧪 测试指南
+## 📚 最佳实践
 
-### 运行所有测试
-```bash
-pytest
-```
+### 🎯 开发流程
 
-### 运行特定测试
-```bash
-pytest tests/test_spider.py
-```
+1. **需求分析** → 明确功能需求和技术需求
+2. **设计架构** → 设计模块结构和接口
+3. **编写代码** → 遵循代码规范，添加文档
+4. **单元测试** → 编写测试用例，确保质量
+5. **集成测试** → 测试模块间的协作
+6. **性能测试** → 分析性能瓶颈，优化代码
+7. **安全审计** → 检查安全漏洞，修复问题
+8. **文档更新** → 更新相关文档
 
-### 运行性能测试
-```bash
-pytest -m "slow"
-```
+### 🔄 持续改进
 
-### 生成测试覆盖率报告
-```bash
-pytest --cov=src --cov-report=html
-```
-
-### 测试文件结构
-
-```
-tests/
-├── __init__.py
-├── conftest.py              # 测试配置和fixture
-├── test_spider.py           # 爬虫测试
-├── test_config.py           # 配置管理测试
-├── test_formatters.py       # 格式化工具测试
-├── test_logger.py           # 日志系统测试
-└── integration/             # 集成测试
-    ├── __init__.py
-    └── test_end_to_end.py   # 端到端测试
-```
-
-### 编写测试用例
-
-#### 单元测试示例
-
-```python
-import pytest
-from src.spider.douyin_spider import DouyinSpider
-
-class TestDouyinSpider:
-    @pytest.fixture
-    def spider(self):
-        return DouyinSpider()
-    
-    def test_spider_initialization(self, spider):
-        assert spider is not None
-        assert hasattr(spider, 'config')
-    
-    @pytest.mark.asyncio
-    async def test_get_hot_list(self, spider):
-        data = await spider.get_hot_list(max_items=5)
-        assert isinstance(data, list)
-        assert len(data) <= 5
-```
-
-#### 集成测试示例
-
-```python
-import pytest
-from src.main import main
-
-class TestIntegration:
-    @pytest.mark.asyncio
-    async def test_full_workflow(self):
-        # 测试完整的工作流程
-        result = await main(max_items=3)
-        assert result.success
-        assert len(result.data) <= 3
-```
-
-### Mock 和 Stub
-
-#### 使用 Mock 测试网络请求
-
-```python
-from unittest.mock import patch, AsyncMock
-
-class TestNetworkRequests:
-    @patch('src.spider.douyin_spider.requests.get')
-    def test_network_request(self, mock_get):
-        mock_get.return_value.status_code = 200
-        mock_get.return_value.json.return_value = {"data": []}
-        
-        # 测试代码
-        result = spider.make_request()
-        assert result is not None
-```
-
-## 📝 日志管理
-
-项目提供了完善的日志管理系统，包括自动日志轮转、清理和查看功能。
-
-### 日志配置
-
-在 `config.json` 中可以配置日志相关参数：
-
-```json
-{
-  "logging": {
-    "level": "INFO",
-    "console_level": "INFO", 
-    "file_level": "DEBUG",
-    "log_file": "logs/spider_{timestamp}.log",
-    "max_file_size": "10MB",
-    "backup_count": 5,
-    "cleanup_old_logs": true,
-    "log_retention_days": 7
-  }
-}
-```
-
-### 日志管理工具
-
-项目提供了便捷的日志管理脚本 `manage_logs.py`：
-
-#### 查看日志统计信息
-```bash
-python manage_logs.py stats
-```
-
-#### 查看最近的日志文件
-```bash
-python manage_logs.py view --recent 5
-```
-
-#### 清理旧日志文件
-```bash
-# 清理7天前的日志文件
-python manage_logs.py cleanup --days 7
-
-# 清理超过50MB的日志文件
-python manage_logs.py cleanup --max-size 50
-
-# 清理重复的日志文件
-python manage_logs.py cleanup --duplicates
-
-# 试运行清理操作（不实际删除）
-python manage_logs.py cleanup --dry-run --days 7
-```
-
-### 日志文件说明
-
-- **日志位置**: `logs/` 目录
-- **文件命名**: `spider_YYYY-MM-DD_HH-MM-SS_mmm.log`
-- **自动清理**: 程序启动时自动清理7天前的日志文件
-- **文件轮转**: 单个日志文件超过10MB时自动轮转
-
-### 日志级别
-
-- **DEBUG**: 详细的调试信息
-- **INFO**: 一般信息（默认）
-- **WARNING**: 警告信息
-- **ERROR**: 错误信息
-- **CRITICAL**: 严重错误
-
-### 自定义日志格式
-
-```python
-import logging
-from src.utils.logger import LogManager
-
-# 创建自定义日志格式
-formatter = logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-
-# 获取日志器并设置格式
-logger = LogManager.get_logger(__name__)
-handler = logger.handlers[0]
-handler.setFormatter(formatter)
-```
-
-## 🤝 贡献指南
-
-我们欢迎所有形式的贡献！请阅读以下指南：
-
-### 贡献方式
-
-1. **报告 Bug**: 在 GitHub Issues 中报告问题
-2. **功能建议**: 提出新功能建议
-3. **代码贡献**: 提交 Pull Request
-4. **文档改进**: 完善文档和示例
-5. **测试贡献**: 添加测试用例
-
-### 提交规范
-
-我们使用 [Conventional Commits](https://www.conventionalcommits.org/) 规范：
-
-- `feat`: 新功能
-- `fix`: 修复 Bug
-- `docs`: 文档更新
-- `style`: 代码格式调整
-- `refactor`: 代码重构
-- `test`: 测试相关
-- `chore`: 构建过程或辅助工具的变动
-
-### Pull Request 流程
-
-1. Fork 项目到你的 GitHub 账户
-2. 创建功能分支 (`git checkout -b feature/amazing-feature`)
-3. 提交更改 (`git commit -m 'feat: add amazing feature'`)
-4. 推送到分支 (`git push origin feature/amazing-feature`)
-5. 创建 Pull Request
-
-### 开发环境
-
-确保你的开发环境满足以下要求：
-
-- Python 3.8+
-- 所有开发依赖已安装
-- 代码通过所有测试
-- 符合代码规范要求
-
-### 代码审查清单
-
-提交 Pull Request 前，请确保：
-
-- [ ] 代码符合项目规范
-- [ ] 所有测试通过
-- [ ] 添加了必要的文档
-- [ ] 更新了相关测试用例
-- [ ] 提交信息符合规范
-- [ ] 没有引入新的警告或错误
-
-## 📄 许可证
-
-本项目采用 [Apache License 2.0](https://opensource.org/licenses/Apache-2.0) 许可证。
-
-```
-Copyright 2025 Douyin Spider Contributors
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-```
+- **代码审查**: 定期进行代码审查
+- **性能监控**: 监控关键性能指标
+- **用户反馈**: 收集和处理用户反馈
+- **技术更新**: 定期更新依赖库
 
 ---
 
-📖 更多信息请查看 [README.md](./README.md)
+## 📞 开发支持
 
+- **技术讨论**: [Issues](https://github.com/MingTechPro/Pyhton_douyin_hot/issues)
+- **开发者邮箱**: chenpeiming52001@163.com
+- **代码贡献**: 欢迎提交 Pull Request
+
+⭐ **感谢每一位贡献者的努力！**

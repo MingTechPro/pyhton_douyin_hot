@@ -30,8 +30,16 @@ from datetime import datetime
 from .base_spider import BaseSpider
 from ..core.constants import Constants
 from ..core.models import HotListResponse, HotListItem, VideoArticle, CrawlResult
+from ..core.exceptions import (
+    NetworkException, RequestTimeoutException, ConnectionException, RateLimitException,
+    DataException, DataParseException, EmptyDataException,
+    BrowserException, BrowserInitException, PageLoadException,
+    SecurityException, InvalidCookieException,
+    handle_exceptions, ExceptionFactory
+)
 from ..config.config_manager import AppConfig
 from ..utils.performance import CacheManager, RateLimiter
+from ..utils.video_downloader import VideoDownloader
 
 
 class DouyinSpider(BaseSpider):
@@ -92,6 +100,21 @@ class DouyinSpider(BaseSpider):
         super().__init__(config, logger)
         self.cache_manager = cache_manager
         self.rate_limiter = rate_limiter
+        
+        # 初始化视频下载器（如果启用）
+        self.video_downloader = None
+        if getattr(config, 'video_download_enabled', False):
+            self.video_downloader = VideoDownloader(
+                download_dir=getattr(config, 'video_download_dir', 'downloads'),
+                max_file_size=getattr(config, 'video_download_max_file_size', 209715200),
+                max_concurrent=getattr(config, 'video_download_max_concurrent', 3),
+                timeout=getattr(config, 'video_download_timeout', 30),
+                chunk_size=getattr(config, 'video_download_chunk_size', 8192),
+                max_retries=getattr(config, 'video_download_max_retries', 3),
+                retry_delay=getattr(config, 'video_download_retry_delay', 1.0),
+                logger=logger
+            )
+            self.logger.info("📥 视频下载器已启用")
         
     def crawl(self) -> CrawlResult:
         """
@@ -198,6 +221,10 @@ class DouyinSpider(BaseSpider):
                     if i < len(hot_items_list) - 1 and self.config.request_interval > 0:
                         time.sleep(self.config.request_interval)
                 
+                # 如果启用了视频下载功能，执行批量下载
+                if self.video_downloader and hot_list_response.items:
+                    self._download_videos_from_items(hot_list_response.items)
+                
                 # 缓存结果
                 if self.cache_manager and self.config.enable_cache:
                     cache_key = f"hot_list_{datetime.now().strftime('%Y%m%d_%H')}_{self.config.max_items}"
@@ -224,6 +251,7 @@ class DouyinSpider(BaseSpider):
                 items_success=items_success
             )
     
+    @handle_exceptions(default_return=None, log_exceptions=True, reraise=True)
     def _fetch_hot_list_data(self, browser) -> Optional[Dict[str, Any]]:
         """
         获取热榜数据
@@ -244,11 +272,20 @@ class DouyinSpider(BaseSpider):
                 response = browser.listen.wait(timeout=self.config.hot_list_timeout)
                 
                 if response is None:
-                    raise Exception("未收到响应数据")
+                    raise RequestTimeoutException(
+                        "热榜请求超时",
+                        context={
+                            "url": self.config.hot_list_url,
+                            "timeout": self.config.hot_list_timeout
+                        }
+                    )
                     
                 data = response.response.body
                 if data is None:
-                    raise Exception("响应体为空")
+                    raise EmptyDataException(
+                        "热榜响应体为空",
+                        context={"url": self.config.hot_list_url}
+                    )
                     
                 request_duration = time.time() - request_start
                 self.logger.info(f"✅ 热榜数据获取成功 ({request_duration:.2f}秒)")
@@ -257,11 +294,32 @@ class DouyinSpider(BaseSpider):
                 self.record_request(True, request_duration)
                 
                 return data
+            except (RequestTimeoutException, EmptyDataException):
+                # 重新抛出自定义异常
+                request_duration = time.time() - request_start
+                self.record_request(False, request_duration)
+                raise
             except Exception as e:
                 request_duration = time.time() - request_start
                 self.logger.error(f"❌ 获取热榜数据失败 ({request_duration:.2f}秒): {str(e)}")
                 self.record_request(False, request_duration)
-                raise
+                
+                # 根据错误类型创建相应的异常
+                if "timeout" in str(e).lower():
+                    raise RequestTimeoutException(
+                        f"网络请求超时: {str(e)}",
+                        context={"url": self.config.hot_list_url, "original_error": str(e)}
+                    )
+                elif "connection" in str(e).lower():
+                    raise ConnectionException(
+                        f"连接失败: {str(e)}",
+                        context={"url": self.config.hot_list_url, "original_error": str(e)}
+                    )
+                else:
+                    raise NetworkException(
+                        f"网络请求失败: {str(e)}",
+                        context={"url": self.config.hot_list_url, "original_error": str(e)}
+                    )
         
         return _fetch()
     
@@ -333,10 +391,10 @@ class DouyinSpider(BaseSpider):
             item_popularity = int(item_data.get(Constants.HOT_VALUE_FIELD))
             item_views = int(item_data.get(Constants.VIEW_COUNT_FIELD))
             
-            # 构建URL - 使用加密模式防止浏览器解析问题
+            # 先构建热榜页面URL用于获取视频详情
             from ..utils.formatters import create_encrypted_url
             if self.config.url_encoding_enabled:
-                item_url = create_encrypted_url(
+                hot_list_page_url = create_encrypted_url(
                     base_url=self.config.hot_list_url,
                     item_id=item_id,
                     title=item_title,
@@ -344,24 +402,38 @@ class DouyinSpider(BaseSpider):
                 )
             else:
                 # 如果禁用URL编码，使用原始方式（不推荐）
-                item_url = f"{self.config.hot_list_url}/{item_id}/{item_title}"
+                hot_list_page_url = f"{self.config.hot_list_url}/{item_id}/{item_title}"
             
             # 记录调试信息
             self.logger.debug(f"位置：{item_position}, 热度：{item_popularity}, 浏览量：{item_views}")
+            
+            # 获取视频详情以获得视频短链接
+            video_detail_json = self._fetch_video_detail(browser, hot_list_page_url)
+            
+            # 获取视频短链接
+            video_short_url = None
+            if video_detail_json is not None:
+                # 从视频详情中提取视频ID来构建短链接
+                video_detail_data = video_detail_json.get(Constants.AWEME_DETAIL_FIELD)
+                if video_detail_data:
+                    video_id = str(video_detail_data.get(Constants.AWEME_ID_FIELD, "")).strip()
+                    if video_id:
+                        video_short_url = f"{self.config.video_url}/{video_id}"
+            
+            # 如果没有获取到视频短链接，使用热榜页面URL作为备选
+            item_url = video_short_url if video_short_url else hot_list_page_url
             
             # 创建热榜项目
             hot_list_item = HotListItem(
                 position=item_position,
                 title=item_title,
-                url=item_url,
+                url=item_url,  # 现在这里存储的是视频短链接
                 popularity=item_popularity,
                 views=item_views,
                 created_at=datetime.now()
             )
             
-            # 获取视频详情
-            video_detail_json = self._fetch_video_detail(browser, item_url)
-            
+            # 重用已获取的视频详情数据
             if video_detail_json is not None:
                 # 处理视频详情数据
                 video_article = self._process_video_detail(video_detail_json)
@@ -491,3 +563,142 @@ class DouyinSpider(BaseSpider):
             return False
             
         return True
+    
+    def _download_videos_from_items(self, hot_items: List[HotListItem]) -> None:
+        """
+        从热榜项目中下载视频
+        
+        @param {List[HotListItem]} hot_items - 热榜项目列表
+        @returns {None}
+        """
+        if not self.video_downloader:
+            return
+        
+        # 收集需要下载的视频信息
+        video_download_list = []
+        for item in hot_items:
+            for article in item.articles:
+                if article.video_url:
+                    # 生成文件名（基于标题和位置）
+                    safe_title = self._sanitize_video_filename(item.title)
+                    filename = f"[{item.position}]_{safe_title}.mp4"
+                    
+                    video_download_list.append({
+                        'url': article.video_url,
+                        'filename': filename,
+                        'referer': item.url  # 使用 list_url 作为 referer
+                    })
+        
+        if not video_download_list:
+            self.logger.warning("⚠️  没有找到可下载的视频URL")
+            return
+        
+        self.logger.info(f"📥 开始下载 {len(video_download_list)} 个视频...")
+        
+        # 定义批量下载进度回调
+        def batch_progress(completed: int, total: int):
+            progress_percent = (completed / total) * 100
+            self.logger.info(f"📊 视频下载进度: {completed}/{total} ({progress_percent:.1f}%)")
+        
+        # 执行批量下载
+        try:
+            download_results = self.video_downloader.download_videos(
+                video_download_list,
+                progress_callback=batch_progress
+            )
+            
+            # 统计下载结果
+            success_count = sum(1 for result in download_results if result.success and not getattr(result, 'skipped', False))
+            skipped_count = sum(1 for result in download_results if result.success and getattr(result, 'skipped', False))
+            failed_count = sum(1 for result in download_results if not result.success)
+            total_count = len(download_results)
+            
+            # 构建简洁的结果消息
+            result_parts = []
+            if success_count > 0:
+                result_parts.append(f"下载 {success_count}")
+            if skipped_count > 0:
+                result_parts.append(f"跳过 {skipped_count}")
+            if failed_count > 0:
+                result_parts.append(f"失败 {failed_count}")
+            
+            result_message = f"📊 视频处理完成: {', '.join(result_parts)} (共 {total_count} 个)"
+            self.logger.info(result_message)
+            
+            # 只有在有实际下载时才显示详细统计
+            if success_count > 0:
+                # 计算实际下载的统计（排除跳过的文件）
+                downloaded_results = [r for r in download_results if r.success and not getattr(r, 'skipped', False)]
+                if downloaded_results:
+                    total_size = sum(r.file_size for r in downloaded_results)
+                    total_time = sum(r.download_time for r in downloaded_results)
+                    avg_speed = total_size / total_time if total_time > 0 else 0
+                    
+                    self.logger.info(
+                        f"📈 下载统计: {self._format_size(total_size)}, "
+                        f"{total_time:.1f}秒, {self._format_speed(avg_speed)}"
+                    )
+            
+            # 只显示失败的下载详情（如果有）
+            failed_downloads = [result for result in download_results if not result.success]
+            if failed_downloads:
+                self.logger.warning(f"❌ {failed_count} 个视频下载失败")
+                for i, result in enumerate(failed_downloads[:2]):  # 只显示前2个失败的
+                    error_msg = result.error_message or "未知错误"
+                    # 简化错误消息，只显示关键部分
+                    if "403 Client Error: Forbidden" in error_msg:
+                        error_msg = "403 访问被拒绝"
+                    elif "Network" in error_msg:
+                        error_msg = "网络连接错误"
+                    self.logger.warning(f"  [{i+1}] {error_msg}")
+                if len(failed_downloads) > 2:
+                    self.logger.warning(f"  ... 还有 {len(failed_downloads) - 2} 个失败")
+                    
+        except Exception as e:
+            self.logger.error(f"❌ 批量下载视频时发生异常: {str(e)}")
+    
+    def _sanitize_video_filename(self, title: str) -> str:
+        """
+        清理视频文件名
+        
+        @param {str} title - 原始标题
+        @returns {str} 清理后的文件名
+        """
+        import re
+        
+        if not title:
+            return "video"
+        
+        # 移除或替换不安全的字符
+        title = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', title)
+        
+        # 限制长度
+        if len(title) > 50:
+            title = title[:50]
+        
+        # 移除首尾空白和点号
+        title = title.strip('. ')
+        
+        return title or "video"
+    
+    def _format_size(self, size: int) -> str:
+        """
+        格式化文件大小显示
+        
+        @param {int} size - 字节数
+        @returns {str} 格式化的大小字符串
+        """
+        for unit in ['B', 'KB', 'MB', 'GB']:
+            if size < 1024:
+                return f"{size:.1f}{unit}"
+            size /= 1024
+        return f"{size:.1f}TB"
+    
+    def _format_speed(self, speed: float) -> str:
+        """
+        格式化下载速度显示
+        
+        @param {float} speed - 字节/秒
+        @returns {str} 格式化的速度字符串
+        """
+        return f"{self._format_size(int(speed))}/s"

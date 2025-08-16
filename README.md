@@ -23,16 +23,20 @@
 ### 🔥 核心功能
 - **智能数据爬取**: 自动获取抖音热榜数据，支持实时更新
 - **多格式输出**: 支持 JSON、CSV、TXT、Markdown 等多种输出格式
-- **高性能架构**: 采用异步请求和并发处理，提升爬取效率
+- **智能视频下载**: 支持视频自动下载，智能跳过已存在文件，避免重复下载
+- **无头浏览器**: 支持后台运行模式，不显示浏览器窗口
+- **防盗链绕过**: 智能设置请求头，绕过视频防盗链保护
+- **并发下载**: 支持多线程并发下载，大幅提升下载效率
 - **智能缓存**: 内置缓存机制，避免重复请求，提高响应速度
 - **错误重试**: 自动重试机制，确保数据获取的可靠性
 
 ### 🛠️ 技术特性
 - **模块化设计**: 清晰的代码结构，易于维护和扩展
-- **配置管理**: 灵活的配置文件系统，支持环境变量
+- **配置管理**: 多层级配置系统（命令行 > environment.py > config.json）
 - **日志系统**: 完善的日志记录，支持多级别日志输出和自动清理
 - **性能监控**: 实时性能统计和监控功能
 - **速率限制**: 智能请求频率控制，避免被反爬虫机制检测
+- **数据模型**: 使用dataclass进行类型安全的数据建模
 
 ## 🚀 快速开始
 
@@ -49,6 +53,7 @@
    ```bash
    git clone https://github.com/MingTechPro/pyhton_douyin_hot.git
    cd pyhton_douyin_hot
+   copy environment.example.py environment.py
    ```
 
 2. **安装依赖**
@@ -86,6 +91,13 @@ DOUYIN_COOKIE = "your_cookie_here"
 # 可选配置覆盖（会覆盖config.json中的对应值）
 REQUEST_INTERVAL = None  # None表示使用config.json中的默认值
 MAX_ITEMS = None  # None表示使用config.json中的默认值
+
+# 浏览器配置
+BROWSER_HEADLESS = False  # 是否启用无头模式（后台运行）
+
+# 视频下载配置
+VIDEO_DOWNLOAD_ENABLED = False  # 是否启用视频下载功能
+VIDEO_DOWNLOAD_DIR = "douyin_video"  # 视频下载目录
 ```
 
 ### 基本使用
@@ -105,20 +117,43 @@ python main.py -o hot_data.json
 
 # 指定输出格式
 python main.py --format csv -o hot_data.csv
+
+# 启用无头浏览器模式（后台运行）
+python main.py --headless
+
+# 启用视频下载功能
+python main.py --download-videos
+
+# 指定视频下载目录
+python main.py --download-videos --download-dir "./my_videos"
+
+# 试运行模式（检查配置）
+python main.py --dry-run
+
+# 显示详细性能信息
+python main.py --performance -n 10
+
+# 组合使用多个功能
+python main.py -n 15 --headless --download-videos --download-dir "./videos"
 ```
 
 ### 命令行参数
 
 | 参数 | 简写 | 类型 | 默认值 | 说明 |
 |------|------|------|--------|------|
-| `--max-items` | `-n` | int | 10 | 最大获取项目数 |
-| `--interval` | `-i` | float | 1.0 | 请求间隔时间(秒) |
+| `--max-items` | `-n` | int | config.json | 最大获取项目数 |
+| `--interval` | `-i` | float | config.json | 请求间隔时间(秒) |
 | `--output` | `-o` | str | - | 输出文件路径 |
-| `--format` | `-f` | str | json | 输出格式(json/csv/txt/markdown) |
-| `--no-skip-top` | - | flag | False | 不跳过热榜置顶 |
-| `--debug` | `-d` | flag | False | 开启调试模式 |
-| `--performance` | `-p` | flag | False | 显示性能信息 |
-| `--version` | `-v` | flag | - | 显示版本信息 |
+| `--format` | - | str | json | 输出格式(json/csv/txt/markdown) |
+| `--no-skip-top` | - | flag | False | 不跳过热榜置顶项目 |
+| `--headless` | - | flag | False | 在后台模式运行浏览器 |
+| `--download-videos` | - | flag | False | 启用视频下载功能 |
+| `--download-dir` | - | str | downloads | 指定视频下载目录 |
+| `--debug` | - | flag | False | 开启调试模式 |
+| `--performance` | - | flag | False | 显示详细性能信息 |
+| `--dry-run` | - | flag | False | 试运行模式 |
+| `--version` | - | flag | - | 显示版本信息 |
+| `--help` | `-h` | flag | - | 显示帮助信息 |
 
 ### 使用示例
 
@@ -140,6 +175,31 @@ python main.py -n 50 -i 3.0 --performance
 #### 示例 4：调试模式运行
 ```bash
 python main.py --debug -n 5
+```
+
+#### 示例 5：无头模式运行（后台运行）
+```bash
+python main.py --headless -n 10
+```
+
+#### 示例 6：启用视频下载功能
+```bash
+python main.py --download-videos --download-dir "./my_videos" -n 5
+```
+
+#### 示例 7：试运行模式（检查配置）
+```bash
+python main.py --dry-run
+```
+
+#### 示例 8：输出Markdown格式
+```bash
+python main.py -n 10 --format markdown -o report.md
+```
+
+#### 示例 9：组合使用多个参数
+```bash
+python main.py -n 20 -i 2.0 --headless --performance --format json -o results.json
 ```
 
 ## 📁 项目结构
@@ -281,7 +341,28 @@ export DOUYIN_LOG_LEVEL=DEBUG
 6. 在请求头中找到Cookie字段并复制完整值
 7. 粘贴到 `environment.py` 文件的 `DOUYIN_COOKIE` 变量中
 
+### Q5: 什么是试运行模式？
+
+**A**: 试运行模式（`--dry-run`）的作用：
+- 检查配置文件是否正确加载
+- 验证命令行参数是否有效
+- 显示当前运行配置信息
+- 不实际执行爬取操作
+- 适用于配置验证和故障排查
+
 ## 📝 更新日志
+
+### v1.2.0 (2025-08-17)
+- 🎉 重大功能更新
+- ✨ 新增智能视频下载功能
+- ✨ 实现防盗链绕过技术
+- ✨ 添加文件存在检查，避免重复下载
+- ✨ 支持多线程并发下载
+- ✨ 优化数据输出格式，移除冗余字段
+- 🐛 修复缓存系统兼容性问题
+- 🐛 修复数据模型序列化问题
+- ⚡ 大幅提升下载性能和稳定性
+- 📝 完善开发文档和使用指南
 
 ### v1.0.0 (2025-01-15)
 - 🎉 初始版本发布
