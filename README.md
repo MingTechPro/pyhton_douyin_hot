@@ -383,8 +383,8 @@ export DOUYIN_LOG_LEVEL=DEBUG
 
 ## 📞 联系我
 
-- **项目主页**: [https://github.com/MingTechPro/Pyhton_douyin_hot.git](https://github.com/MingTechPro/Pyhton_douyin_hot.git)
-- **问题反馈**: [https://github.com/MingTechPro/Pyhton_douyin_hot/issues](https://github.com/MingTechPro/Pyhton_douyin_hot/issues)
+- **项目主页**: [https://github.com/MingTechPro/pyhton_douyin_hot.git](https://github.com/MingTechPro/Pyhton_douyin_hot.git)
+- **问题反馈**: [https://github.com/MingTechPro/pyhton_douyin_hot/issues](https://github.com/MingTechPro/pyhton_douyin_hot/issues)
 - **邮箱**: chenpeiming52001@163.com
 
 ## 🙏 致谢
