@@ -82,10 +82,10 @@ all = [
 
 # 项目URLs
 [project.urls]
-Homepage = "https://github.com/yourusername/douyin-spider"
-Documentation = "https://douyin-spider.readthedocs.io/"
-Repository = "https://github.com/yourusername/douyin-spider.git"
-"Bug Tracker" = "https://github.com/yourusername/douyin-spider/issues"
+Homepage = "https://github.com/MingTechPro/pyhton_douyin_hot"
+Documentation = "https://github.com/MingTechPro/pyhton_douyin_hot"
+Repository = "https://github.com/MingTechPro/pyhton_douyin_hot.git"
+"Bug Tracker" = "https://github.com/MingTechPro/pyhton_douyin_hot/issues"
 
 # 工具配置
 [tool.setuptools.packages.find]
@@ -187,33 +187,4 @@ exclude_lines = [
     "@(abc\\.)?abstractmethod",
 ]
 
-# Pre-commit钩子配置
-[tool.pre-commit]
-repos = [
-    {
-        repo = "https://github.com/pre-commit/pre-commit-hooks",
-        rev = "v4.4.0",
-        hooks = [
-            {id = "trailing-whitespace"},
-            {id = "end-of-file-fixer"},
-            {id = "check-yaml"},
-            {id = "check-added-large-files"},
-            {id = "check-merge-conflict"},
-        ],
-    },
-    {
-        repo = "https://github.com/psf/black",
-        rev = "23.3.0",
-        hooks = [{id = "black"}],
-    },
-    {
-        repo = "https://github.com/pycqa/flake8",
-        rev = "6.0.0",
-        hooks = [{id = "flake8"}],
-    },
-    {
-        repo = "https://github.com/pre-commit/mirrors-mypy",
-        rev = "v1.3.0",
-        hooks = [{id = "mypy"}],
-    },
-]
+# Pre-commit钩子配置 (需要在项目根目录创建 .pre-commit-config.yaml 文件)

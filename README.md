@@ -107,7 +107,7 @@ VIDEO_DOWNLOAD_DIR = "douyin_video"  # 视频下载目录
 python main.py
 
 # 获取指定数量的热点数据
-python main.py -n 20
+python main.py -m 20
 
 # 设置请求间隔
 python main.py -i 2.0
@@ -116,7 +116,7 @@ python main.py -i 2.0
 python main.py -o hot_data.json
 
 # 指定输出格式
-python main.py --format csv -o hot_data.csv
+python main.py -f csv -o hot_data.csv
 
 # 启用无头浏览器模式（后台运行）
 python main.py --headless
@@ -131,60 +131,60 @@ python main.py --download-videos --download-dir "./my_videos"
 python main.py --dry-run
 
 # 显示详细性能信息
-python main.py --performance -n 10
+python main.py -p -m 10
 
 # 组合使用多个功能
-python main.py -n 15 --headless --download-videos --download-dir "./videos"
+python main.py -m 15 --headless --download-videos --download-dir "./videos"
 ```
 
 ### 命令行参数
 
 | 参数 | 简写 | 类型 | 默认值 | 说明 |
 |------|------|------|--------|------|
-| `--max-items` | `-n` | int | config.json | 最大获取项目数 |
+| `--max-items` | `-m` | int | config.json | 最大获取项目数 |
 | `--interval` | `-i` | float | config.json | 请求间隔时间(秒) |
 | `--output` | `-o` | str | - | 输出文件路径 |
-| `--format` | - | str | json | 输出格式(json/csv/txt/markdown) |
+| `--format` | `-f` | str | json | 输出格式(json/csv/txt/markdown) |
 | `--no-skip-top` | - | flag | False | 不跳过热榜置顶项目 |
 | `--headless` | - | flag | False | 在后台模式运行浏览器 |
 | `--download-videos` | - | flag | False | 启用视频下载功能 |
 | `--download-dir` | - | str | downloads | 指定视频下载目录 |
-| `--debug` | - | flag | False | 开启调试模式 |
-| `--performance` | - | flag | False | 显示详细性能信息 |
+| `--debug` | `-d` | flag | False | 开启调试模式 |
+| `--performance` | `-p` | flag | False | 显示详细性能信息 |
 | `--dry-run` | - | flag | False | 试运行模式 |
-| `--version` | - | flag | - | 显示版本信息 |
+| `--version` | `-v` | flag | - | 显示版本信息 |
 | `--help` | `-h` | flag | - | 显示帮助信息 |
 
 ### 使用示例
 
 #### 示例 1：获取前 10 条热点数据
 ```bash
-python main.py -n 10
+python main.py -m 10
 ```
 
 #### 示例 2：获取数据并保存为 CSV 格式
 ```bash
-python main.py -n 20 --format csv -o douyin_hot.csv
+python main.py -m 20 -f csv -o douyin_hot.csv
 ```
 
 #### 示例 3：设置较长的请求间隔避免被限制
 ```bash
-python main.py -n 50 -i 3.0 --performance
+python main.py -m 50 -i 3.0 -p
 ```
 
 #### 示例 4：调试模式运行
 ```bash
-python main.py --debug -n 5
+python main.py -d -m 5
 ```
 
 #### 示例 5：无头模式运行（后台运行）
 ```bash
-python main.py --headless -n 10
+python main.py --headless -m 10
 ```
 
 #### 示例 6：启用视频下载功能
 ```bash
-python main.py --download-videos --download-dir "./my_videos" -n 5
+python main.py --download-videos --download-dir "./my_videos" -m 5
 ```
 
 #### 示例 7：试运行模式（检查配置）
@@ -194,12 +194,12 @@ python main.py --dry-run
 
 #### 示例 8：输出Markdown格式
 ```bash
-python main.py -n 10 --format markdown -o report.md
+python main.py -m 10 -f markdown -o report.md
 ```
 
 #### 示例 9：组合使用多个参数
 ```bash
-python main.py -n 20 -i 2.0 --headless --performance --format json -o results.json
+python main.py -m 20 -i 2.0 --headless -p -f json -o results.json
 ```
 
 ## 📁 项目结构
@@ -317,6 +317,7 @@ export DOUYIN_LOG_LEVEL=DEBUG
 
 **A**: 建议采取以下措施：
 - 增加请求间隔时间 (`-i` 参数)
+- 减少获取数量 (`-m` 参数)
 - 使用随机 User-Agent
 - 启用代理轮换
 - 限制并发请求数量

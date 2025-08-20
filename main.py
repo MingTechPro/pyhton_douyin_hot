@@ -20,10 +20,11 @@
 
 使用示例:
     python main_optimized.py                    # 使用默认配置
-    python main_optimized.py -n 5               # 获取前5条数据
+    python main_optimized.py -m 5               # 获取前5条数据
     python main_optimized.py -i 2               # 请求间隔2秒
-    python main_optimized.py --performance      # 显示详细性能信息
-    python main_optimized.py --format csv -o result.csv  # CSV格式输出
+    python main_optimized.py -p                 # 显示详细性能信息
+    python main_optimized.py -f csv -o result.csv  # CSV格式输出
+    python main_optimized.py -d -p              # 调试+性能监控模式
 """
 
 import sys
@@ -63,22 +64,24 @@ def parse_arguments() -> argparse.Namespace:
         epilog="""
 使用示例:
   python main_optimized.py                         # 使用默认配置
-  python main_optimized.py -n 5                    # 获取前5条数据
+  python main_optimized.py -m 5                    # 获取前5条数据
   python main_optimized.py -i 2                    # 请求间隔2秒
-  python main_optimized.py -n 10 -i 1.5           # 获取10条，间隔1.5秒
+  python main_optimized.py -m 10 -i 1.5           # 获取10条，间隔1.5秒
   python main_optimized.py --no-skip-top          # 不跳过热榜置顶
   python main_optimized.py --headless             # 浏览器后台运行
   python main_optimized.py --download-videos      # 启用视频下载
-  python main_optimized.py --download-dir ./vids  # 指定下载目录
-  python main_optimized.py --debug                # 开启调试模式
-  python main_optimized.py --performance          # 显示详细性能信息
+  python main_optimized.py -d                     # 开启调试模式
+  python main_optimized.py -p                     # 显示详细性能信息
+  python main_optimized.py -f csv -o result.csv   # CSV格式输出
+  python main_optimized.py --dry-run              # 试运行模式
+  python main_optimized.py -v                     # 显示版本信息
   python main_optimized.py -h                     # 显示帮助信息
         """
     )
     
     # 数据获取参数组
     parser.add_argument(
-        '-n', '--max-items',
+        '-m', '--max-items',
         type=int,
         help='最大获取项目数 (默认: 使用配置文件中的值)'
     )
@@ -121,7 +124,7 @@ def parse_arguments() -> argparse.Namespace:
     )
     
     parser.add_argument(
-        '--format',
+        '-f', '--format',
         choices=['json', 'csv', 'txt', 'markdown'],
         default='json',
         help='输出格式 (默认: json)'
@@ -129,13 +132,13 @@ def parse_arguments() -> argparse.Namespace:
     
     # 调试和性能参数组
     parser.add_argument(
-        '--debug',
+        '-d', '--debug',
         action='store_true',
         help='开启调试模式 (更详细的日志输出)'
     )
     
     parser.add_argument(
-        '--performance',
+        '-p', '--performance',
         action='store_true',
         help='显示详细性能信息'
     )
@@ -148,7 +151,7 @@ def parse_arguments() -> argparse.Namespace:
     
     # 其他参数组
     parser.add_argument(
-        '--version',
+        '-v', '--version',
         action='version',
         version='抖音热榜爬虫 v1.0.0 (优化版本)'
     )
